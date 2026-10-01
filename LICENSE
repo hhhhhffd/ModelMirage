@@ -20,6 +20,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-The Blood Axe Mace model and texture under
-src/main/resources/assets/modelmirage are third-party assets and are excluded
-from this license. See THIRD_PARTY_NOTICES.md.
+Third-party material adapted or copied from AstolfoVisuals, including the GUI
+files and font/shader assets identified in THIRD_PARTY_NOTICES.md, is excluded
+from this license. Blood Axe Mace assets in the separate catalog are also
+excluded. See THIRD_PARTY_NOTICES.md.

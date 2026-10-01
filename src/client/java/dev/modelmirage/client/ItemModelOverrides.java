@@ -17,6 +17,7 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
+import dev.modelmirage.client.render.RuntimeModels;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,7 +40,9 @@ public final class ItemModelOverrides {
 			items.entrySet().forEach(entry -> {
 				Identifier item = Identifier.tryParse(entry.getKey());
 				Identifier model = Identifier.tryParse(entry.getValue().getAsString());
-				if (item == null || !BuiltInRegistries.ITEM.containsKey(item) || !ModelMirageClient.MODEL_ID.equals(model)) {
+				if (Identifier.fromNamespaceAndPath("modelmirage", "blood_axe_mace").equals(model)) model = ModelMirageClient.MODEL_ID;
+				if (item == null || !BuiltInRegistries.ITEM.containsKey(item) || model == null
+						|| !model.getNamespace().equals("modelmirage") || !model.getPath().matches("catalog/[a-z0-9][a-z0-9_-]{0,63}")) {
 					throw new IllegalArgumentException("Unsupported override: " + entry.getKey());
 				}
 				loaded.put(item, model);
@@ -55,13 +58,19 @@ public final class ItemModelOverrides {
 	}
 
 	public static Identifier resolve(ItemStack stack, Identifier original) {
+		if (original != null && original.getNamespace().equals("modelmirage") && original.getPath().startsWith("catalog/")) return original;
 		Identifier item = BuiltInRegistries.ITEM.getKey(stack.getItem());
-		return overrides.getOrDefault(item, original);
+		Identifier selected = overrides.get(item);
+		return selected != null && RuntimeModels.contains(selected) ? selected : original;
 	}
 
-	public static void setEnabled(Identifier item, boolean enabled) throws IOException {
+	public static boolean usesModel(Identifier model) { return overrides.containsValue(model); }
+	public static Identifier selectedModel(Identifier item) { return overrides.get(item); }
+	public static int count() { return overrides.size(); }
+
+	public static void setModel(Identifier item, Identifier model) throws IOException {
 		Map<Identifier, Identifier> updated = new HashMap<>(overrides);
-		if (enabled) updated.put(item, ModelMirageClient.MODEL_ID);
+		if (model != null) updated.put(item, model);
 		else updated.remove(item);
 
 		JsonObject root = new JsonObject();
