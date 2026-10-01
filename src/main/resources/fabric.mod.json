@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "modelmirage",
+  "version": "${version}",
+  "name": "ModelMirage",
+  "description": "Client-side item model selection",
+  "environment": "client",
+  "license": "MIT",
+  "entrypoints": {
+    "client": ["dev.modelmirage.client.ModelMirageClient"]
+  },
+  "mixins": [
+    {"config": "modelmirage.client.mixins.json", "environment": "client"}
+  ],
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "minecraft": "~26.2",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}
