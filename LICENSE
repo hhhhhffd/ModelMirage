@@ -21,6 +21,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 Third-party material adapted or copied from AstolfoVisuals, including the GUI
-files and font/shader assets identified in THIRD_PARTY_NOTICES.md, is excluded
-from this license. Blood Axe Mace assets in the separate catalog are also
+and adapted HUD files, animation frames and font/shader assets identified in
+THIRD_PARTY_NOTICES.md, is excluded from this license. Blood Axe Mace assets in the separate catalog are also
 excluded. See THIRD_PARTY_NOTICES.md.

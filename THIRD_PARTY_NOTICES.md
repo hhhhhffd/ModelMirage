@@ -8,13 +8,16 @@ Commit: 13ca7da2a789c45a45b9c5c3eea7bb200b00ea2f
 The sidebar, layout, palette and easing in ModelMirageScreen.java,
 gui/AstolfoUi.java and gui/AstolfoButton.java are adapted from
 xyz.angames.astolfoclient.client.gui.ClickGuiScreen and clickgui.GuiUtils.
-The MSDF font atlases under assets/modelmirage/astolfo/fonts are copied from
-that repository; shaders/core/msdf.fsh adapts its MSDF fragment shader.
+The HUD panel composition and hotkey/settings controls are adapted from its
+Interface/HUD managers. The BoyKisser frames under assets/modelmirage/astolfo/
+boykisser and MSDF font atlases (including bold) under
+assets/modelmirage/astolfo/fonts are copied from that repository; shaders/core/msdf.fsh adapts its MSDF fragment shader.
 
 The upstream repository describes recovered/decompiled source and does not
 contain a LICENSE file at this commit. The project owner confirmed permission
 to use and include this work. ModelMirage's MIT license does not grant new
-rights to this third-party material. This notice is included in release JARs.
+rights to this third-party material, including the adapted HUD code and copied
+BoyKisser frames. This notice is included in release JARs.
 
 ## Blood Axe Mace
 

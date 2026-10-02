@@ -6,6 +6,9 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import dev.modelmirage.client.catalog.CatalogService;
 import dev.modelmirage.client.render.RuntimeModels;
+import dev.modelmirage.client.visual.Visuals;
+import dev.modelmirage.client.visual.VisualHud;
+import dev.modelmirage.client.visual.VisualPreferences;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.resources.Identifier;
@@ -17,6 +20,9 @@ public class ModelMirageClient implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
 		ItemModelOverrides.load();
+		Visuals.load();
+		VisualPreferences.load();
+		VisualHud.register();
 		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
 			CatalogService.close();
 			RuntimeModels.close();
@@ -29,6 +35,7 @@ public class ModelMirageClient implements ClientModInitializer {
 				InputConstants.KEY_RSHIFT,
 				category));
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
+			VisualHud.tick();
 			// Runtime atlases need the shaders from Minecraft's initial resource load.
 			if (!catalogStarted && client.isGameLoadFinished()) {
 				catalogStarted = true;

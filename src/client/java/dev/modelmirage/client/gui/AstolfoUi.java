@@ -5,11 +5,13 @@ import com.google.gson.JsonParser;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.FilterMode;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.navigation.ScreenRectangle;
 import net.minecraft.client.gui.render.TextureSetup;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.state.gui.BlitRenderState;
@@ -18,25 +20,34 @@ import org.joml.Matrix3x2f;
 
 /** Layout palette, animation and font assets adapted from AstolfoVisuals ClickGuiScreen/GuiUtils. */
 public final class AstolfoUi {
-	public static final int BACKGROUND = 0xFF0E0E12;
-	public static final int PANEL = 0xFF101016;
-	public static final int CARD = 0xFF14141A;
-	public static final int HOVER = 0xFF181820;
-	public static final int TEXT = 0xFFE3E3ED;
-	public static final int MUTED = 0xFF828291;
-	public static final int ACCENT = 0xFFFF69B4;
-	public static final int SELECTED = 0xFF382333;
+	public static final int BACKGROUND = 0xFF080D15;
+	public static final int SIDEBAR = 0xFF0D141F;
+	public static final int PANEL = 0xFF0D111C;
+	public static final int CARD = 0xFF111A27;
+	public static final int HOVER = 0xFF192738;
+	public static final int TEXT = 0xFFDCE7F1;
+	public static final int MUTED = 0xFF6F8196;
+	public static volatile int ACCENT = 0xFF00B5F5;
+	public static final int SELECTED = 0xFF12374D;
+	public static final int LINE = 0xFF1B2B40;
 	public static final Face SEMIBOLD = new Face("semibold");
+	public static final Face BOLD = new Face("bold");
 	public static final Face MEDIUM = new Face("medium");
 	public static final Face ICONS = new Face("icons");
 	private static final RenderPipeline MSDF = RenderPipelines.register(RenderPipeline.builder(RenderPipelines.GUI_TEXTURED_SNIPPET)
 			.withLocation(Identifier.fromNamespaceAndPath("modelmirage", "pipeline/msdf"))
 			.withFragmentShader(Identifier.fromNamespaceAndPath("modelmirage", "core/msdf")).build());
+	private static final RenderPipeline SHAPE = RenderPipelines.register(RenderPipeline.builder(RenderPipelines.GUI_SNIPPET)
+			.withLocation(Identifier.fromNamespaceAndPath("modelmirage", "pipeline/shape"))
+			.withVertexShader(Identifier.fromNamespaceAndPath("modelmirage", "core/shape"))
+			.withFragmentShader(Identifier.fromNamespaceAndPath("modelmirage", "core/shape"))
+			.withVertexBinding(0, DefaultVertexFormat.POSITION_TEX_COLOR).build());
 
 	private AstolfoUi() { }
 
 	// GuiUtils.animate: frame-rate-independent easing from the upstream GUI.
 	public static float animate(float current, float target, float speed, float seconds) {
+		if (!dev.modelmirage.client.visual.VisualPreferences.animations) return target;
 		if (Math.abs(target - current) < 0.00005f) return target;
 		return current + (target - current) * (1.0f - (float) Math.exp(-speed * seconds));
 	}
@@ -52,14 +63,22 @@ public final class AstolfoUi {
 	}
 
 	public static void rounded(GuiGraphicsExtractor graphics, int x, int y, int width, int height, int radius, int color) {
-		radius = Math.min(radius, Math.min(width, height) / 2);
-		graphics.fill(x + radius, y, x + width - radius, y + height, color);
-		graphics.fill(x, y + radius, x + width, y + height - radius, color);
-		for (int row = 0; row < radius; row++) {
-			int inset = radius - (int) Math.sqrt(radius * radius - Math.pow(radius - row - 0.5, 2));
-			graphics.fill(x + inset, y + row, x + width - inset, y + row + 1, color);
-			graphics.fill(x + inset, y + height - row - 1, x + width - inset, y + height - row, color);
-		}
+		shape(graphics, x, y, width, height, radius, 0, color, color);
+	}
+
+	public static void border(GuiGraphicsExtractor graphics, int x, int y, int width, int height, int radius, int color) {
+		shape(graphics, x, y, width, height, radius, 1, color, color);
+	}
+
+	public static void shape(GuiGraphicsExtractor graphics, float x, float y, float width, float height,
+			float radius, float border, int top, int bottom) {
+		if (width <= 0 || height <= 0) return;
+		Matrix3x2f pose = new Matrix3x2f(graphics.pose());
+		ScreenRectangle bounds = new ScreenRectangle((int) x, (int) y, (int) Math.ceil(width), (int) Math.ceil(height)).transformMaxBounds(pose);
+		ScreenRectangle scissor = graphics.scissorStack.peek();
+		if (scissor != null) bounds = bounds.intersection(scissor);
+		graphics.guiRenderState.addGuiElement(new ShapeRenderState(SHAPE, pose, x, y, width, height,
+				(float) Math.floor(Math.min(radius, Math.min(width, height) / 2)), border, top, bottom, scissor, bounds));
 	}
 
 	public static final class Face {
