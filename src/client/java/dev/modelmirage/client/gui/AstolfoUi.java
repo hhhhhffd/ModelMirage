@@ -20,20 +20,24 @@ import org.joml.Matrix3x2f;
 
 /** Layout palette, animation and font assets adapted from AstolfoVisuals ClickGuiScreen/GuiUtils. */
 public final class AstolfoUi {
-	public static final int BACKGROUND = 0xFF080D15;
-	public static final int SIDEBAR = 0xFF0D141F;
-	public static final int PANEL = 0xFF0D111C;
-	public static final int CARD = 0xFF111A27;
-	public static final int HOVER = 0xFF192738;
-	public static final int TEXT = 0xFFDCE7F1;
-	public static final int MUTED = 0xFF6F8196;
-	public static volatile int ACCENT = 0xFF00B5F5;
-	public static final int SELECTED = 0xFF12374D;
-	public static final int LINE = 0xFF1B2B40;
+	public static final int BACKGROUND = 0xFF000000;
+	public static final int SIDEBAR = 0xFF000000;
+	public static final int PANEL = 0xFF060608;
+	public static final int CARD = 0xFF060608;
+	public static final int HOVER = 0xFF0A0A0E;
+	public static final int TEXT = 0xFFFFFFFF;
+	public static final int MUTED = 0xFFA0A0A5;
+	public static volatile int ACCENT = 0xFF80D6ED;
+	public static final int SELECTED = 0xFF1C2F34;
+	public static final int LINE = 0xFF16161C;
+	public static float alpha = 1;
 	public static final Face SEMIBOLD = new Face("semibold");
 	public static final Face BOLD = new Face("bold");
 	public static final Face MEDIUM = new Face("medium");
 	public static final Face ICONS = new Face("icons");
+	public static final Face LOGO = new Face("logo");
+	public static final Face INTERFACE = new Face("interface");
+	public static final Face WATERMARK = new Face("watermark");
 	private static final RenderPipeline MSDF = RenderPipelines.register(RenderPipeline.builder(RenderPipelines.GUI_TEXTURED_SNIPPET)
 			.withLocation(Identifier.fromNamespaceAndPath("modelmirage", "pipeline/msdf"))
 			.withFragmentShader(Identifier.fromNamespaceAndPath("modelmirage", "core/msdf")).build());
@@ -42,6 +46,10 @@ public final class AstolfoUi {
 			.withVertexShader(Identifier.fromNamespaceAndPath("modelmirage", "core/shape"))
 			.withFragmentShader(Identifier.fromNamespaceAndPath("modelmirage", "core/shape"))
 			.withVertexBinding(0, DefaultVertexFormat.POSITION_TEX_COLOR).build());
+	private static final RenderPipeline HEAD = RenderPipelines.register(RenderPipeline.builder(RenderPipelines.GUI_TEXTURED_SNIPPET)
+			.withLocation(Identifier.fromNamespaceAndPath("modelmirage", "pipeline/head"))
+			.withVertexShader(Identifier.fromNamespaceAndPath("modelmirage", "core/shape"))
+			.withFragmentShader(Identifier.fromNamespaceAndPath("modelmirage", "core/head")).build());
 
 	private AstolfoUi() { }
 
@@ -62,6 +70,28 @@ public final class AstolfoUi {
 		return result;
 	}
 
+	public static int opacity(int color, float amount) {
+		return Math.round((color >>> 24) * Math.clamp(amount, 0, 1)) << 24 | color & 0xFFFFFF;
+	}
+
+	public static void shadow(GuiGraphicsExtractor graphics, float x, float y, float width, float height, float radius) {
+		for (int i = 11; i >= 0; i--) {
+			float progress = i / 12f;
+			float spread = progress * 6.5f;
+			shape(graphics, x - spread, y - spread + 0.8f, width + spread * 2, height + spread * 2,
+					radius + spread, 0, opacity(0x66000000, (1 - progress) * (1 - progress)), opacity(0x66000000, (1 - progress) * (1 - progress)));
+		}
+	}
+
+	public static void glow(GuiGraphicsExtractor graphics, float cx, float cy, float radius, int color, float strength) {
+		for (int i = 7; i >= 0; i--) {
+			float progress = i / 8f;
+			float r = radius + progress * 6.5f;
+			int tint = opacity(color, strength * (1 - progress) * (1 - progress));
+			shape(graphics, cx - r, cy - r, r * 2, r * 2, r, 0, tint, tint);
+		}
+	}
+
 	public static void rounded(GuiGraphicsExtractor graphics, int x, int y, int width, int height, int radius, int color) {
 		shape(graphics, x, y, width, height, radius, 0, color, color);
 	}
@@ -78,7 +108,18 @@ public final class AstolfoUi {
 		ScreenRectangle scissor = graphics.scissorStack.peek();
 		if (scissor != null) bounds = bounds.intersection(scissor);
 		graphics.guiRenderState.addGuiElement(new ShapeRenderState(SHAPE, pose, x, y, width, height,
-				(float) Math.floor(Math.min(radius, Math.min(width, height) / 2)), border, top, bottom, scissor, bounds));
+				Math.min(radius, Math.min(width, height) / 2), border, opacity(top, alpha), opacity(bottom, alpha), scissor, bounds, TextureSetup.noTexture()));
+	}
+
+	public static void head(GuiGraphicsExtractor graphics, Identifier textureId, int x, int y, int size, boolean player, int tint) {
+		var texture = Minecraft.getInstance().getTextureManager().getTexture(textureId);
+		TextureSetup textureSetup = TextureSetup.singleTexture(texture.getTextureView(), RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST));
+		Matrix3x2f pose = new Matrix3x2f(graphics.pose());
+		ScreenRectangle bounds = new ScreenRectangle(x, y, size, size).transformMaxBounds(pose);
+		ScreenRectangle scissor = graphics.scissorStack.peek();
+		if (scissor != null) bounds = bounds.intersection(scissor);
+		int color = opacity(tint, alpha);
+		graphics.guiRenderState.addGuiElement(new ShapeRenderState(HEAD, pose, x, y, size, size, Math.min(4, size / 2f), player ? 0 : 1, color, color, scissor, bounds, textureSetup));
 	}
 
 	public static final class Face {
@@ -127,6 +168,7 @@ public final class AstolfoUi {
 
 		public void draw(GuiGraphicsExtractor graphics, String text, float x, float y, float size, int color) {
 			load();
+			color = opacity(color, alpha);
 			Identifier location = Identifier.fromNamespaceAndPath("modelmirage", "astolfo/fonts/" + name + ".png");
 			var texture = Minecraft.getInstance().getTextureManager().getTexture(location);
 			TextureSetup setup = TextureSetup.singleTexture(texture.getTextureView(), RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));

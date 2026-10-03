@@ -10,12 +10,19 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.client.input.MouseButtonEvent;
 import org.slf4j.LoggerFactory;
 
 public final class AppearanceScreen extends Screen {
 	private final Screen parent;
 	private AstolfoButton animations;
 	private String error = "";
+	private float opening;
+	private float scale = 1;
+	private float originX;
+	private float originY;
+	private boolean closing;
+	private long frame = System.nanoTime();
 
 	public AppearanceScreen(Screen parent) {
 		super(Component.literal("Оформление"));
@@ -24,8 +31,8 @@ public final class AppearanceScreen extends Screen {
 
 	@Override
 	protected void init() {
-		int x = width / 2 - 140;
-		int y = Math.max(10, height / 2 - 100);
+		int x = 13;
+		int y = 13;
 		addRenderableWidget(new ColorPickerWidget(x, y + 25, 125, AstolfoUi.ACCENT, color -> AstolfoUi.ACCENT = color));
 		animations = addRenderableWidget(new AstolfoButton(x + 150, y + 25, 125, 27, "Анимации", false,
 				() -> VisualPreferences.animations = !VisualPreferences.animations));
@@ -35,24 +42,54 @@ public final class AppearanceScreen extends Screen {
 	}
 
 	@Override
+	public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) { }
+
+	@Override
+	public boolean isPauseScreen() { return false; }
+
+	@Override
 	public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
-		int x = width / 2 - 153;
-		int y = Math.max(2, height / 2 - 113);
-		graphics.fill(0, 0, width, height, 0xBB040912);
-		AstolfoUi.rounded(graphics, x, y, 306, 221, 7, AstolfoUi.PANEL);
-		AstolfoUi.border(graphics, x, y, 306, 221, 7, AstolfoUi.LINE);
-		AstolfoUi.BOLD.draw(graphics, "Оформление", x + 13, y + 13, 13, AstolfoUi.TEXT);
+		long now = System.nanoTime();
+		opening = AstolfoUi.animate(opening, closing ? 0 : 1, 18, Math.min((now - frame) / 1e9f, 0.1f));
+		frame = now;
+		if (closing && opening < 0.005f) { minecraft.gui.setScreen(parent); return; }
+		parent.extractRenderState(graphics, -1000, -1000, delta);
+		graphics.fill(0, 0, width, height, AstolfoUi.opacity(0x77000000, opening));
+		scale = Math.min((float) (2f / minecraft.getWindow().getGuiScale()) * VisualPreferences.guiScale, Math.min((width - 16f) / 306, (height - 16f) / 221)) * (0.90f + opening * 0.10f);
+		originX = (width - 306 * scale) / 2;
+		originY = (height - 221 * scale) / 2;
+		graphics.pose().pushMatrix();
+		graphics.pose().translate(originX, originY);
+		graphics.pose().scale(scale, scale);
+		AstolfoUi.alpha = opening;
+		AstolfoUi.shadow(graphics, 0, 0, 306, 221, 7);
+		AstolfoUi.rounded(graphics, 0, 0, 306, 221, 7, AstolfoUi.BACKGROUND);
+		AstolfoUi.border(graphics, 0, 0, 306, 221, 7, AstolfoUi.LINE);
+		AstolfoUi.BOLD.draw(graphics, "Оформление", 13, 13, 13, AstolfoUi.TEXT);
 		animations.selected = VisualPreferences.animations;
 		animations.setMessage(Component.literal("Анимации: " + (VisualPreferences.animations ? "Вкл" : "Выкл")));
-		super.extractRenderState(graphics, mouseX, mouseY, delta);
-		if (!error.isEmpty()) AstolfoUi.MEDIUM.draw(graphics, error, x + 13, y + 205, 9, 0xFFFF7C8F);
+		super.extractRenderState(graphics, (int) ((mouseX - originX) / scale), (int) ((mouseY - originY) / scale), delta);
+		if (!error.isEmpty()) AstolfoUi.MEDIUM.draw(graphics, error, 13, 205, 9, 0xFFFF7C8F);
+		AstolfoUi.alpha = 1;
+		graphics.pose().popMatrix();
 	}
+
+	private MouseButtonEvent local(MouseButtonEvent event) {
+		return new MouseButtonEvent((event.x() - originX) / scale, (event.y() - originY) / scale, event.buttonInfo());
+	}
+	@Override
+	public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) { return !closing && super.mouseClicked(local(event), doubleClick); }
+	@Override
+	public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) { return !closing && super.mouseDragged(local(event), dx / scale, dy / scale); }
+	@Override
+	public boolean mouseReleased(MouseButtonEvent event) { return super.mouseReleased(local(event)); }
 
 	@Override
 	public void onClose() {
 		try {
 			VisualPreferences.save();
-			minecraft.gui.setScreen(parent);
+			if (VisualPreferences.animations) closing = true;
+			else minecraft.gui.setScreen(parent);
 		} catch (IOException failure) {
 			error = "Не удалось сохранить оформление";
 			LoggerFactory.getLogger("ModelMirage").error("Could not save appearance", failure);

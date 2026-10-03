@@ -10,8 +10,13 @@ gui/AstolfoUi.java and gui/AstolfoButton.java are adapted from
 xyz.angames.astolfoclient.client.gui.ClickGuiScreen and clickgui.GuiUtils.
 The HUD panel composition and hotkey/settings controls are adapted from its
 Interface/HUD managers. The BoyKisser frames under assets/modelmirage/astolfo/
-boykisser and MSDF font atlases (including bold) under
-assets/modelmirage/astolfo/fonts are copied from that repository; shaders/core/msdf.fsh adapts its MSDF fragment shader.
+boykisser and MSDF font atlases (including bold, the Astolfo logo, watermark
+and interface icon atlases) under assets/modelmirage/astolfo/fonts are copied
+from that repository; shaders/core/msdf.fsh adapts its MSDF fragment shader.
+The mob_icon.png asset is copied from the same source. HUD geometry,
+shadows, animated digits, health bars, effect cards, transparent inventory
+and armor, and keybind/module transitions adapt its HUD managers for the
+Minecraft 26.2 extraction renderer.
 
 The upstream repository describes recovered/decompiled source and does not
 contain a LICENSE file at this commit. The project owner confirmed permission

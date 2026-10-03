@@ -9,7 +9,7 @@ import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
-/** Neverlose-style row: settings on the left, a directly accessible switch on the right. */
+/** Original ClickGui header: toggle with LMB, bind with RMB/MMB. */
 public final class ModuleWidget extends AbstractWidget {
 	private final VisualModule module;
 	private final Runnable open;
@@ -18,7 +18,7 @@ public final class ModuleWidget extends AbstractWidget {
 	private long frame = System.nanoTime();
 
 	public ModuleWidget(int x, int y, int width, VisualModule module, Runnable open, Runnable changed) {
-		super(x, y, width, 38, Component.literal(module.name));
+		super(x, y, width, 24, Component.literal(module.name));
 		this.module = module;
 		this.open = open;
 		this.changed = changed;
@@ -32,18 +32,24 @@ public final class ModuleWidget extends AbstractWidget {
 		frame = now;
 		int x = getX();
 		int y = getY();
-		if (isHoveredOrFocused()) AstolfoUi.rounded(graphics, x + 2, y + 2, width - 4, height - 4, 4, AstolfoUi.HOVER);
-		AstolfoUi.MEDIUM.draw(graphics, AstolfoUi.MEDIUM.fit(getMessage().getString(), 12, width - 77), x + 10, y + 13, 12, AstolfoUi.TEXT);
-		AstolfoUi.ICONS.draw(graphics, "J", x + width - 59, y + 13, 12, AstolfoUi.MUTED);
-		AstolfoUi.rounded(graphics, x + width - 37, y + 13, 27, 13, 6, AstolfoUi.mix(0xFF283443, AstolfoUi.ACCENT, toggle));
-		AstolfoUi.shape(graphics, x + width - 35 + toggle * 13, y + 15, 9, 9, 4, 0, 0xFFF2F6FB, 0xFFF2F6FB);
-		graphics.fill(x + 10, y + height - 1, x + width - 10, y + height, 0x501B2B40);
+		if (isHoveredOrFocused()) AstolfoUi.rounded(graphics, x, y, width, height, 7, AstolfoUi.HOVER);
+		AstolfoUi.SEMIBOLD.draw(graphics, module.id, x + 10, y + 8, 9.5f, AstolfoUi.TEXT);
+		if (module.bind >= 0) {
+			String key = InputConstants.Type.KEYSYM.getOrCreate(module.bind).getDisplayName().getString();
+			AstolfoUi.MEDIUM.draw(graphics, AstolfoUi.MEDIUM.fit("[" + key + "]", 7, 48), x + 15 + AstolfoUi.SEMIBOLD.width(module.id, 9.5f), y + 9, 7, AstolfoUi.MUTED);
+		}
+		AstolfoUi.rounded(graphics, x + width - 32, y + 6, 22, 11, 5, AstolfoUi.mix(0xFF14141A, AstolfoUi.ACCENT, toggle));
+		AstolfoUi.shape(graphics, x + width - 30.5f + toggle * 11, y + 7.5f, 8, 8, 4, 0, AstolfoUi.TEXT, AstolfoUi.TEXT);
+
 	}
 
 	@Override
-	public void onClick(MouseButtonEvent event, boolean doubleClick) {
-		if (event.x() >= getX() + width - 41) { module.enabled = !module.enabled; changed.run(); }
-		else open.run();
+	public void onClick(MouseButtonEvent event, boolean doubleClick) { module.enabled = !module.enabled; changed.run(); }
+
+	@Override
+	public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+		if (active && visible && isMouseOver(event.x(), event.y()) && (event.button() == 1 || event.button() == 2)) { open.run(); return true; }
+		return super.mouseClicked(event, doubleClick);
 	}
 
 	@Override

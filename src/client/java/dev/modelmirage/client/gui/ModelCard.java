@@ -18,7 +18,7 @@ public final class ModelCard extends AbstractWidget {
 	public boolean applied;
 
 	public ModelCard(int x, int y, CatalogModel model, Runnable action) {
-		super(x, y, 124, 123, Component.literal(model.name()));
+		super(x, y, 100, 115, Component.literal(model.name()));
 		this.model = model;
 		this.action = action;
 	}
@@ -33,12 +33,12 @@ public final class ModelCard extends AbstractWidget {
 		graphics.enableScissor(x + 5, y + 5, x + width - 5, y + 84);
 		if (CatalogService.isLoaded(model)) RuntimeModels.preview(graphics, model.modelId(), x + width / 2f, y + 43, 64, 0, 0);
 		else {
-			AstolfoUi.ICONS.draw(graphics, "E", x + 47, y + 26, 29, AstolfoUi.MUTED);
-			AstolfoUi.MEDIUM.draw(graphics, "Загрузить", x + 36, y + 64, 10, AstolfoUi.MUTED);
+			AstolfoUi.ICONS.draw(graphics, "E", x + 36, y + 26, 29, AstolfoUi.MUTED);
+			AstolfoUi.MEDIUM.draw(graphics, "Загрузить", x + 25, y + 64, 10, AstolfoUi.MUTED);
 		}
 		graphics.disableScissor();
-		AstolfoUi.SEMIBOLD.draw(graphics, AstolfoUi.SEMIBOLD.fit(model.name(), 11, width - 16), x + 8, y + 89, 11, AstolfoUi.TEXT);
-		AstolfoUi.MEDIUM.draw(graphics, applied ? "Применена" : selected ? "Выбрана" : "Модель предмета", x + 8, y + 108, 9, applied || selected ? AstolfoUi.ACCENT : AstolfoUi.MUTED);
+		AstolfoUi.SEMIBOLD.draw(graphics, AstolfoUi.SEMIBOLD.fit(model.name(), 9, width - 16), x + 8, y + 89, 9, AstolfoUi.TEXT);
+		AstolfoUi.MEDIUM.draw(graphics, applied ? "Применена" : selected ? "Выбрана" : "Модель предмета", x + 8, y + 104, 7, applied || selected ? AstolfoUi.ACCENT : AstolfoUi.MUTED);
 	}
 
 	@Override

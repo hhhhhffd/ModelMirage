@@ -22,25 +22,36 @@ public final class HudLayout {
 				JsonObject position = entry.getValue().getAsJsonObject();
 				float x = position.get("x").getAsFloat();
 				float y = position.get("y").getAsFloat();
-				if (!Float.isFinite(x) || !Float.isFinite(y)) throw new IllegalArgumentException("Invalid HUD position");
-				POSITIONS.put(entry.getKey(), new Position(Math.clamp(x, 0, 1), Math.clamp(y, 0, 1)));
+				float scale = position.has("scale") ? position.get("scale").getAsFloat() : 1;
+				if (!Float.isFinite(x) || !Float.isFinite(y) || !Float.isFinite(scale)) throw new IllegalArgumentException("Invalid HUD position");
+				POSITIONS.put(entry.getKey(), new Position(Math.clamp(x, 0, 1), Math.clamp(y, 0, 1), Math.clamp(scale, 0.5f, 2)));
 			}
 		} catch (IOException | RuntimeException failure) {
 			LoggerFactory.getLogger("ModelMirage").error("Could not load HUD layout", failure);
 		}
 	}
 	public static Position position(String id, float defaultX, float defaultY, int width, int height) {
-		return POSITIONS.getOrDefault(id, new Position(defaultX / width, defaultY / height));
+		return POSITIONS.getOrDefault(id, new Position(defaultX / width, defaultY / height, 1));
 	}
 	public static void move(String id, float x, float y, int width, int height) {
-		POSITIONS.put(id, new Position(Math.clamp(x / width, 0, 1), Math.clamp(y / height, 0, 1)));
+		float scale = POSITIONS.containsKey(id) ? POSITIONS.get(id).scale() : 1;
+		POSITIONS.put(id, new Position(Math.clamp(x / width, 0, 1), Math.clamp(y / height, 0, 1), scale));
 	}
+	public static void scale(String id, float scale) {
+		Position previous = POSITIONS.get(id);
+		if (previous == null) throw new IllegalArgumentException("HUD panel must be positioned before resizing");
+		POSITIONS.put(id, new Position(previous.x(), previous.y(), Math.clamp(scale, 0.5f, 2)));
+	}
+	public static void reset(String id) { POSITIONS.remove(id); }
+	public static Map<String, Position> snapshot() { return new LinkedHashMap<>(POSITIONS); }
+	public static void restore(Map<String, Position> positions) { POSITIONS.clear(); POSITIONS.putAll(positions); }
 	public static void save() throws IOException {
 		JsonObject result = new JsonObject();
 		POSITIONS.forEach((id, position) -> {
 			JsonObject value = new JsonObject();
 			value.addProperty("x", position.x());
 			value.addProperty("y", position.y());
+			value.addProperty("scale", position.scale());
 			result.add(id, value);
 		});
 		Files.createDirectories(CONFIG.getParent());
@@ -48,5 +59,5 @@ public final class HudLayout {
 		try { Files.writeString(temporary, result.toString()); Files.move(temporary, CONFIG, StandardCopyOption.REPLACE_EXISTING); }
 		finally { Files.deleteIfExists(temporary); }
 	}
-	public record Position(float x, float y) { }
+	public record Position(float x, float y, float scale) { }
 }

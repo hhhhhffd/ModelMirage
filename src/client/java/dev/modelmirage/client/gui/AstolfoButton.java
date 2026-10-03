@@ -32,22 +32,22 @@ public final class AstolfoButton extends AbstractWidget {
 		long now = System.nanoTime();
 		hover = AstolfoUi.animate(hover, active && isHoveredOrFocused() ? 1f : 0f, 16f, Math.min((now - frame) / 1e9f, 0.1f));
 		frame = now;
-		int color = primary && active ? AstolfoUi.ACCENT : selected ? AstolfoUi.SELECTED : navigation ? 0 : AstolfoUi.CARD;
+		int color = primary && active ? AstolfoUi.ACCENT : navigation ? 0 : selected ? AstolfoUi.SELECTED : AstolfoUi.CARD;
 		AstolfoUi.rounded(graphics, getX(), getY(), width, height, 6,
-				AstolfoUi.mix(color, primary ? 0xFF4DCDF8 : AstolfoUi.HOVER, hover));
+				AstolfoUi.mix(color, primary ? 0xFFABE9F8 : AstolfoUi.HOVER, hover));
 		if (!navigation || isFocused()) AstolfoUi.border(graphics, getX(), getY(), width, height, 6, isFocused() ? AstolfoUi.ACCENT : AstolfoUi.LINE);
-		int textColor = !active ? 0xFF485464 : primary ? 0xFF04121B : selected ? AstolfoUi.ACCENT : AstolfoUi.TEXT;
+		int textColor = !active ? 0xFF485464 : primary ? 0xFF040608 : AstolfoUi.TEXT;
 		int start = getX() + 10;
 		if (!item.isEmpty()) {
 			graphics.item(item, getX() + 8, getY() + (height - 16) / 2);
 			start += 25;
 		} else if (!symbol.isEmpty()) {
-			AstolfoUi.ICONS.draw(graphics, symbol, getX() + 10, getY() + (height - 13) / 2, 13, selected ? AstolfoUi.ACCENT : textColor);
+			AstolfoUi.ICONS.draw(graphics, symbol, getX() + (getMessage().getString().isEmpty() ? (width - 13) / 2 : 10), getY() + (height - 13) / 2, 13, selected ? AstolfoUi.ACCENT : textColor);
 			start += 22;
 		}
 		boolean centered = subtitle.isEmpty() && symbol.isEmpty() && item.isEmpty();
-		float size = compact ? 10 : 11;
-		String label = AstolfoUi.SEMIBOLD.fit(getMessage().getString(), size, centered ? width - 6 : width - (start - getX()) - 8);
+		float size = navigation ? 9 : compact ? 8 : 10;
+		String label = getMessage().getString().isEmpty() ? "" : AstolfoUi.SEMIBOLD.fit(getMessage().getString(), size, centered ? width - 6 : width - (start - getX()) - 8);
 		float textX = centered ? getX() + (width - AstolfoUi.SEMIBOLD.width(label, size)) / 2 : start;
 		AstolfoUi.SEMIBOLD.draw(graphics, label, textX, getY() + (subtitle.isEmpty() ? (height - size) / 2f : 9), size, textColor);
 		if (!subtitle.isEmpty()) {

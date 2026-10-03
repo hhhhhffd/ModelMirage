@@ -23,9 +23,9 @@ public final class ColorPickerWidget extends AbstractWidget {
 		for (int row = 0; row < 48; row++) for (int column = 0; column < 64; column++) {
 			int left = x + column * width / 64, right = x + (column + 1) * width / 64;
 			int top = y + 23 + row * 93 / 48, bottom = y + 23 + (row + 1) * 93 / 48;
-			graphics.fill(left, top, right, bottom, Color.HSBtoRGB(hue, column / 63f, 1 - row / 47f));
+			graphics.fill(left, top, right, bottom, AstolfoUi.opacity(Color.HSBtoRGB(hue, column / 63f, 1 - row / 47f), AstolfoUi.alpha));
 		}
-		for (int column = 0; column < width; column++) graphics.fill(x + column, y + 125, x + column + 1, y + 136, Color.HSBtoRGB(column / (float) width, 1, 1));
+		for (int column = 0; column < width; column++) graphics.fill(x + column, y + 125, x + column + 1, y + 136, AstolfoUi.opacity(Color.HSBtoRGB(column / (float) width, 1, 1), AstolfoUi.alpha));
 		int cx = x + Math.round(saturation * width), cy = y + 23 + Math.round((1 - value) * 93);
 		AstolfoUi.border(graphics, cx - 3, cy - 3, 7, 7, 3, 0xFFFFFFFF);
 		graphics.fill(x + Math.round(hue * width) - 1, y + 123, x + Math.round(hue * width) + 1, y + 138, 0xFFFFFFFF);

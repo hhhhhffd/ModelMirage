@@ -1,66 +1,51 @@
 package dev.modelmirage.client.visual;
 
 import dev.modelmirage.client.gui.AstolfoUi;
-import java.io.IOException;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
-import org.slf4j.LoggerFactory;
 
 public final class HudEditorScreen extends Screen {
 	private final Screen parent;
-	private VisualHud.Panel dragging;
-	private float offsetX;
-	private float offsetY;
-	private String error = "";
+	private final HudInteraction interaction = new HudInteraction();
 	public HudEditorScreen(Screen parent) { super(Component.literal("Редактор HUD")); this.parent = parent; }
 
 	@Override
+	public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) { }
+
+	@Override
 	public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
-		graphics.fill(0, 0, width, height, 0x4403070D);
-		for (int x = 0; x < width; x += 12) graphics.fill(x, 0, x + 1, height, 0x0B94B9DC);
-		for (int y = 0; y < height; y += 12) graphics.fill(0, y, width, y + 1, 0x0B94B9DC);
+		graphics.fill(0, 0, width, height, 0x33000000);
 		VisualHud.render(graphics, true);
-		String label = error.isEmpty() ? "Перетаскивай панели. Esc: сохранить и вернуться" : error;
-		float textWidth = AstolfoUi.MEDIUM.width(label, 10);
-		AstolfoUi.MEDIUM.draw(graphics, label, (width - textWidth) / 2, height - 14, 10, AstolfoUi.TEXT);
+		interaction.draw(graphics, mouseX, mouseY, true);
+		float hintScale = 2f / minecraft.getWindow().getGuiScale();
+		float hintWidth = width / hintScale;
+		graphics.pose().pushMatrix();
+		graphics.pose().scale(hintScale, hintScale);
+		String label = "Тяни / колесо: масштаб / стрелки: 1 px / Shift: 10 px / ПКМ: сброс / Ctrl+Z: отмена / Esc: готово";
+		float size = Math.min(8, (hintWidth - 20) / AstolfoUi.MEDIUM.width(label, 1));
+		float textWidth = AstolfoUi.MEDIUM.width(label, size);
+		AstolfoUi.shape(graphics, (hintWidth - textWidth) / 2 - 7, 22, textWidth + 14, 18, 5, 0, 0xE6000000, 0xE6000000);
+		AstolfoUi.MEDIUM.draw(graphics, label, (hintWidth - textWidth) / 2, 28, size, AstolfoUi.TEXT);
+		graphics.pose().popMatrix();
 	}
 
 	@Override
-	public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-		if (event.button() != 0) return false;
-		var panels = VisualHud.panels();
-		for (int index = panels.size() - 1; index >= 0; index--) {
-			var panel = panels.get(index);
-			if (panel.contains(event.x(), event.y())) {
-				dragging = panel;
-				offsetX = (float) event.x() - panel.screenX();
-				offsetY = (float) event.y() - panel.screenY();
-				return true;
-			}
-		}
-		return false;
-	}
-
+	public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) { return interaction.click(event, doubleClick, width, height); }
 	@Override
-	public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
-		if (dragging == null) return false;
-		float x = Math.clamp((float) event.x() - offsetX, 0, Math.max(0, width - dragging.screenWidth()));
-		float y = Math.clamp((float) event.y() - offsetY, 0, Math.max(0, height - dragging.screenHeight()));
-		HudLayout.move(dragging.id(), x, y, width, height);
-		return true;
-	}
-
+	public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) { return interaction.drag(event, width, height); }
 	@Override
-	public boolean mouseReleased(MouseButtonEvent event) { dragging = null; return true; }
-
+	public boolean mouseReleased(MouseButtonEvent event) { return interaction.release(event); }
 	@Override
-	public void onClose() {
-		try { HudLayout.save(); minecraft.gui.setScreen(parent); }
-		catch (IOException failure) { error = "Не удалось сохранить расположение"; LoggerFactory.getLogger("ModelMirage").error("Could not save HUD layout", failure); }
-	}
-
+	public boolean mouseScrolled(double x, double y, double horizontal, double vertical) { return interaction.scroll(x, y, vertical, width, height); }
+	@Override
+	public boolean keyPressed(KeyEvent event) { return interaction.key(event, width, height) || super.keyPressed(event); }
+	@Override
+	public void onClose() { if (interaction.save()) minecraft.gui.setScreen(parent); }
+	@Override
+	public void removed() { interaction.save(); }
 	@Override
 	public boolean isPauseScreen() { return false; }
 }

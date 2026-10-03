@@ -11,9 +11,7 @@ import org.joml.Vector2f;
 /** Per-shape data travels in vertices, allowing differently sized panels in one GUI batch. */
 record ShapeRenderState(RenderPipeline pipeline, Matrix3x2f pose, float x, float y, float width,
 		float height, float radius, float border, int top, int bottom, ScreenRectangle scissorArea,
-		ScreenRectangle bounds) implements GuiElementRenderState {
-	@Override
-	public TextureSetup textureSetup() { return TextureSetup.noTexture(); }
+		ScreenRectangle bounds, TextureSetup textureSetup) implements GuiElementRenderState {
 
 	@Override
 	public void buildVertices(VertexConsumer vertices) {
@@ -25,6 +23,7 @@ record ShapeRenderState(RenderPipeline pipeline, Matrix3x2f pose, float x, float
 
 	private void vertex(VertexConsumer vertices, float x, float y, float u, float v, int color) {
 		Vector2f point = pose.transformPosition(x, y, new Vector2f());
-		vertices.addVertex(point.x, point.y, radius + border / 1000f).setUv(u, v).setColor(color);
+		// The custom vertex shader treats Z as metadata, preserving fractional corner radii.
+		vertices.addVertex(point.x, point.y, radius + border * 1000f).setUv(u, v).setColor(color);
 	}
 }

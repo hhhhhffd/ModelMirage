@@ -13,7 +13,7 @@ void main() {
     gl_Position = ProjMat * ModelViewMat * vec4(Position.xy, 0.0, 1.0);
     localPosition = UV0;
     halfSize = abs(UV0);
-    radius = floor(Position.z + 0.0001);
-    border = fract(Position.z + 0.0001) * 1000.0 - 0.1;
+    radius = mod(Position.z, 1000.0);
+    border = floor(Position.z / 1000.0);
     vertexColor = Color;
 }
