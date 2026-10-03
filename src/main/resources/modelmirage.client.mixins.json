@@ -6,7 +6,8 @@
     "ItemModelResolverMixin",
     "SpriteLoaderInvoker",
     "ItemStackRenderStateAccessor",
-    "KeyboardVisualMixin"
+    "KeyboardVisualMixin",
+    "PlayerCosmeticMixin"
   ],
   "injectors": {
     "defaultRequire": 1

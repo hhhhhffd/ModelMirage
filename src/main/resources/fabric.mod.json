@@ -3,14 +3,19 @@
   "id": "modelmirage",
   "version": "${version}",
   "name": "ModelMirage",
-  "description": "Client-side item model selection",
+  "description": "Client-side loadout changer, player cosmetics and downloadable HUD characters",
   "environment": "client",
   "license": "MIT",
   "entrypoints": {
-    "client": ["dev.modelmirage.client.ModelMirageClient"]
+    "client": [
+      "dev.modelmirage.client.ModelMirageClient"
+    ]
   },
   "mixins": [
-    {"config": "modelmirage.client.mixins.json", "environment": "client"}
+    {
+      "config": "modelmirage.client.mixins.json",
+      "environment": "client"
+    }
   ],
   "depends": {
     "fabricloader": ">=0.19.5",

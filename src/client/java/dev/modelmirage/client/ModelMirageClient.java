@@ -6,6 +6,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import dev.modelmirage.client.catalog.CatalogService;
 import dev.modelmirage.client.render.RuntimeModels;
+import dev.modelmirage.client.render.MascotAnimations;
 import dev.modelmirage.client.visual.Visuals;
 import dev.modelmirage.client.visual.VisualHud;
 import dev.modelmirage.client.visual.VisualPreferences;
@@ -24,6 +25,7 @@ public class ModelMirageClient implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
 		ItemModelOverrides.load();
+		CosmeticSelections.load();
 		Visuals.load();
 		VisualPreferences.load();
 		VisualHud.register();
@@ -40,6 +42,7 @@ public class ModelMirageClient implements ClientModInitializer {
 		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
 			CatalogService.close();
 			RuntimeModels.close();
+			MascotAnimations.close();
 		});
 
 		var category = KeyMapping.Category.register(Identifier.fromNamespaceAndPath("modelmirage", "controls"));

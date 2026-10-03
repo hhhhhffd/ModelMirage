@@ -13,13 +13,13 @@ public final class ColorPickerWidget extends AbstractWidget {
 	private final IntConsumer changed;
 	private boolean hueDrag;
 	public ColorPickerWidget(int x, int y, int width, int color, IntConsumer changed) {
-		super(x, y, width, 145, Component.literal("Цвет интерфейса"));
+		super(x, y, width, 145, Component.literal("Цвет HUD"));
 		float[] hsv = Color.RGBtoHSB(color >> 16 & 255, color >> 8 & 255, color & 255, null);
 		hue = hsv[0]; saturation = hsv[1]; value = hsv[2]; this.changed = changed;
 	}
 	@Override protected void extractWidgetRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
 		int x = getX(), y = getY();
-		AstolfoUi.SEMIBOLD.draw(graphics, "Цвет интерфейса", x, y, 12, AstolfoUi.TEXT);
+		AstolfoUi.SEMIBOLD.draw(graphics, "Цвет HUD", x, y, 12, AstolfoUi.TEXT);
 		for (int row = 0; row < 48; row++) for (int column = 0; column < 64; column++) {
 			int left = x + column * width / 64, right = x + (column + 1) * width / 64;
 			int top = y + 23 + row * 93 / 48, bottom = y + 23 + (row + 1) * 93 / 48;

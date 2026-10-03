@@ -1,6 +1,8 @@
 package dev.modelmirage.client.visual;
 
 import dev.modelmirage.client.gui.AstolfoUi;
+import dev.modelmirage.client.CosmeticSelections;
+import dev.modelmirage.client.render.MascotAnimations;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -411,11 +413,10 @@ public final class VisualHud {
 	}
 
 	private static void boykisser(GuiGraphicsExtractor graphics, boolean editor) {
-		Panel panel = begin(graphics, "boykisser", "BoyKisser", 20, 50, 64, 64, editor || Visuals.enabled("BoyKisser"), false, editor);
+		Identifier selected = CosmeticSelections.selected(CosmeticSelections.Slot.MASCOT);
+		Panel panel = begin(graphics, "boykisser", "Персонаж", 20, 50, MascotAnimations.width(selected), MascotAnimations.height(selected), editor || Visuals.enabled("BoyKisser"), false, editor);
 		if (panel == null) return;
-		int index = VisualPreferences.animations ? (int) (System.currentTimeMillis() / 100 % 52) : 0;
-		Identifier image = Identifier.fromNamespaceAndPath("modelmirage", "astolfo/boykisser/boykisser_" + index + ".png");
-		graphics.blit(RenderPipelines.GUI_TEXTURED, image, panel.x(), panel.y(), 0, 0, 64, 64, 64, 64, AstolfoUi.opacity(0xFFFFFFFF, AstolfoUi.alpha));
+		MascotAnimations.draw(graphics, selected, panel.x(), panel.y(), panel.width(), panel.height(), AstolfoUi.opacity(0xFFFFFFFF, AstolfoUi.alpha));
 		end(graphics);
 	}
 

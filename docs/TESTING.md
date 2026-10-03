@@ -1,7 +1,56 @@
-# Проверка ModelMirage 0.3.0
+# Проверки ModelMirage
 
 Среда: Minecraft 26.2, Fabric Loader 0.19.5, Fabric API 0.161.0+26.2,
 OpenJDK 25, Linux/Xvfb/llvmpipe. Проверено 2026-10-02.
+
+## Патч 0.3.1 — NL loadout changer, 2026-10-03
+
+Среда: Minecraft 26.2, JDK 25, Fabric 0.161.0+26.2, Linux/Xvfb/llvmpipe.
+Использована отдельная копия мира `/tmp/modelmirage-changer-qa` и localhost
+каталог с предметом Blood Axe Mace, статической player-моделью QA Avatar,
+PNG-анимацией Remote Dance и записью `format: blender` без декодера.
+Эти тестовые модели и каталог не включены в релиз.
+
+- `./gradlew build --offline --no-daemon`: успешно; `test NO-SOURCE`.
+- Проверены JAR `ModelMirage-0.3.1.jar`, версия в fabric.mod.json, loader SPI,
+  player mixin и mascot runtime. QA-ассеты отсутствуют в JAR.
+- `git diff --check`: успешно.
+- Right Shift открывает Inventory с самостоятельными плитками всех предметов,
+  preview собственного игрока слева и остальных справа.
+- Поиск `diamond_sword` → предмет → Blood Axe Mace. Сброс удалил назначение
+  из `modelmirage.json`; повторное применение восстановило его.
+- Внешняя player-модель скачана по HTTP с проверкой файлов, запечена в 36 faces
+  и назначена self. В preview и третьем лице отрисована именно её геометрия.
+- Та же модель независимо назначена others. Сброс self вернул обычный self
+  preview, сохранив others и mascot в `changer.json`.
+- Внешняя анимация: скачаны definition и два PNG-кадра, работает preview,
+  выбор записан в mascot и отрисован в HUD. «Расположение» открывает HUD editor.
+- Будущий Blender-формат виден с пометкой «Нужен загрузчик». Его файл не
+  скачивается, остальные записи каталога загружаются и применяются.
+- После полного перезапуска восстановлены others, mascot и item override.
+  Renderer сам загрузил выбранные ассеты без resource reload.
+- Проверена нормализация разных размеров geometry thumbnails и правильные
+  screen bounds обоих entity preview при масштабировании всего окна.
+- После остановки localhost-сервера новый запуск сообщил
+  `using verified local index: java.net.ConnectException`: каталог, модель
+  игрока, модель предмета и персонаж восстановились из кеша.
+
+![Inventory 0.3.1](screenshots/changer-inventory-0.3.1.png)
+
+![Модели игроков и будущий декодер](screenshots/changer-players-0.3.1.png)
+
+![Персонажи](screenshots/changer-mascots-0.3.1.png)
+
+![Статическая модель в третьем лице](screenshots/changer-world-0.3.1.png)
+
+Ограничения: live multiplayer с удалённым игроком не запускался; others
+проверен через отдельный AvatarRenderState в GUI. Blender/Blockbench/FBX
+декодеры и скелетные анимации не реализованы, для них подготовлен API.
+Unit tests отсутствуют. JSON Schema прочитана как JSON, внешнего schema
+validator в среде нет. Плавность на GPU не оценивалась: llvmpipe даёт 4–6 FPS.
+В логах остаются ошибки среды OpenAL/flite/Realms/Xvfb cursor; закрытие
+X11-окна завершает тестовый runClient с ненулевым exit code. Ошибок модели,
+загрузки анимаций или применения mixin в проверенных сценариях не обнаружено.
 
 ## Перенос HUD и GUI AstolfoVisuals — 2026-10-03
 

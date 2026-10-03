@@ -1,0 +1,160 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ModelMirage catalog",
+  "type": "object",
+  "required": [
+    "schema",
+    "models"
+  ],
+  "properties": {
+    "schema": {
+      "enum": [
+        1,
+        2
+      ]
+    },
+    "models": {
+      "type": "array",
+      "maxItems": 4096,
+      "items": {
+        "$ref": "#/$defs/model"
+      }
+    }
+  },
+  "$defs": {
+    "asset": {
+      "type": "object",
+      "required": [
+        "path",
+        "sha256",
+        "bytes"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*$",
+          "not": {
+            "pattern": "(^|/)\\.{1,2}(/|$)"
+          }
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16777216
+        }
+      }
+    },
+    "assets": {
+      "type": "object",
+      "maxProperties": 256,
+      "additionalProperties": {
+        "$ref": "#/$defs/asset"
+      }
+    },
+    "model": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "format",
+        "model"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$",
+          "not": {
+            "const": "builtin-boykisser"
+          }
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "\\S"
+        },
+        "kind": {
+          "enum": [
+            "item",
+            "player",
+            "mascot"
+          ],
+          "default": "item"
+        },
+        "format": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$"
+        },
+        "group": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "color": {
+          "type": "string",
+          "pattern": "^#?[0-9A-Fa-f]{6}$"
+        },
+        "items": {
+          "type": "array",
+          "maxItems": 4096,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9_.-]+:[a-z0-9_./-]+$"
+          }
+        },
+        "model": {
+          "$ref": "#/$defs/asset"
+        },
+        "textures": {
+          "$ref": "#/$defs/assets"
+        },
+        "parents": {
+          "$ref": "#/$defs/assets",
+          "maxProperties": 32,
+          "additionalProperties": {
+            "$ref": "#/$defs/parentAsset"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "const": "mascot"
+              }
+            }
+          },
+          "then": {},
+          "else": {
+            "properties": {
+              "textures": {
+                "maxProperties": 32
+              }
+            }
+          }
+        }
+      ]
+    },
+    "parentAsset": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/asset"
+        },
+        {
+          "properties": {
+            "bytes": {
+              "maximum": 4194304
+            }
+          }
+        }
+      ]
+    }
+  }
+}

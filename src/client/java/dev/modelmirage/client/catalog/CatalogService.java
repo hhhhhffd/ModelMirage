@@ -3,6 +3,10 @@ package dev.modelmirage.client.catalog;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import dev.modelmirage.client.ItemModelOverrides;
+import dev.modelmirage.client.CosmeticSelections;
+import dev.modelmirage.client.render.MascotAnimations;
+import java.util.Set;
+import java.util.Objects;
 import dev.modelmirage.client.render.RuntimeModels;
 import java.io.IOException;
 import java.io.InputStream;
@@ -47,19 +51,37 @@ public final class CatalogService {
 	private static final URI SOURCE = URI.create(System.getProperty("modelmirage.catalogUrl", DEFAULT_SOURCE));
 	private static final Map<CatalogModel, CompletableFuture<Void>> DOWNLOADS = new ConcurrentHashMap<>();
 	private static final Map<Identifier, CatalogModel> LOADED = new ConcurrentHashMap<>();
-	private static volatile List<CatalogModel> models = List.of();
+	private static final Map<String, Decoder> LOADERS = new ConcurrentHashMap<>();
+	private static volatile List<CatalogModel> models = List.of(CatalogModel.boykisser());
 	private static volatile String error = "";
 	private static volatile boolean loading;
 	private static volatile boolean cached;
 
-	private CatalogService() {
+	static {
+		registerLoader("java-item", Set.of(CatalogModel.Kind.ITEM, CatalogModel.Kind.PLAYER),
+				(entry, definition, textures, parents) -> RuntimeModels.prepare(entry.modelId(), definition, textures, parents));
+		registerLoader("sprite-animation", Set.of(CatalogModel.Kind.MASCOT), MascotAnimations::prepare);
 	}
+
+	private CatalogService() { }
+
+	public static void registerLoader(String format, Set<CatalogModel.Kind> kinds, ModelLoader loader) {
+		if (!ID.matcher(format).matches() || kinds.isEmpty()) throw new IllegalArgumentException("Invalid model loader " + format);
+		if (LOADERS.putIfAbsent(format, new Decoder(Set.copyOf(kinds), Objects.requireNonNull(loader))) != null) throw new IllegalArgumentException("Duplicate model loader " + format);
+	}
+	public static boolean supports(CatalogModel model) {
+		Decoder decoder = LOADERS.get(model.format());
+		return model.builtin() || decoder != null && decoder.kinds().contains(model.kind());
+	}
+	private record Decoder(Set<CatalogModel.Kind> kinds, ModelLoader loader) { }
 
 	public static List<CatalogModel> models() { return models; }
 	public static String error() { return error; }
 	public static boolean loading() { return loading; }
 	public static boolean cached() { return cached; }
-	public static boolean isLoaded(CatalogModel model) { return model.equals(LOADED.get(model.modelId())); }
+	public static boolean isLoaded(CatalogModel model) { return model.builtin() || model.equals(LOADED.get(model.modelId())); }
+	public static boolean isLoading(CatalogModel model) { var download = DOWNLOADS.get(model); return download != null && !download.isDone(); }
+	public static boolean hasFailed(CatalogModel model) { var download = DOWNLOADS.get(model); return download != null && download.isCompletedExceptionally(); }
 
 	public static synchronized CompletableFuture<Void> refresh() {
 		if (loading) return CompletableFuture.completedFuture(null);
@@ -87,13 +109,14 @@ public final class CatalogService {
 				loading = false;
 			}
 			for (CatalogModel entry : models) {
-				if (ItemModelOverrides.usesModel(entry.modelId())) load(entry);
+				if ((ItemModelOverrides.usesModel(entry.modelId()) || CosmeticSelections.uses(entry.modelId())) && supports(entry)) load(entry);
 			}
 		}, WORKER);
 	}
 
 	public static CompletableFuture<Void> load(CatalogModel model) {
 		if (isLoaded(model)) return CompletableFuture.completedFuture(null);
+		if (!supports(model)) return CompletableFuture.failedFuture(new IllegalArgumentException("No loader for " + model.kind() + "/" + model.format()));
 		return DOWNLOADS.computeIfAbsent(model, requested -> CompletableFuture.supplyAsync(() -> {
 			try {
 				byte[] json = asset(model.model());
@@ -101,16 +124,16 @@ public final class CatalogService {
 				for (var entry : model.textures().entrySet()) textures.put(entry.getKey(), asset(entry.getValue()));
 				Map<Identifier, byte[]> parents = new HashMap<>();
 				for (var entry : model.parents().entrySet()) parents.put(entry.getKey(), asset(entry.getValue()));
-				return RuntimeModels.prepare(model.modelId(), json, textures, parents);
+				return LOADERS.get(model.format()).loader().prepare(model, json, textures, parents);
 			} catch (Exception failure) {
 				throw new java.util.concurrent.CompletionException(failure);
 			}
 		}, WORKER).thenCompose(prepared -> Minecraft.getInstance().submit(() -> {
 				if (!models.contains(model)) {
-					prepared.sprites().forEach(net.minecraft.client.renderer.texture.SpriteContents::close);
+					prepared.discard();
 					throw new IllegalStateException("Catalog entry changed during download");
 				}
-				RuntimeModels.install(prepared);
+				prepared.install();
 				LOADED.put(model.modelId(), model);
 			}))
 				.whenComplete((unused, failure) -> {
@@ -125,31 +148,40 @@ public final class CatalogService {
 	private static List<CatalogModel> parse(byte[] data) {
 		if (data.length > 2 * 1024 * 1024) throw new IllegalArgumentException("Catalog too large");
 		JsonObject root = JsonParser.parseString(new String(data, StandardCharsets.UTF_8)).getAsJsonObject();
-		if (root.get("schema").getAsInt() != 1) throw new IllegalArgumentException("Unsupported catalog schema");
+		if (root.get("schema").getAsInt() != 1 && root.get("schema").getAsInt() != 2) throw new IllegalArgumentException("Unsupported catalog schema");
 		var entries = root.getAsJsonArray("models");
 		if (entries.size() > 4096) throw new IllegalArgumentException("Too many catalog models");
 		List<CatalogModel> result = new ArrayList<>();
+		result.add(CatalogModel.boykisser());
 		HashSet<String> ids = new HashSet<>();
+		ids.add(CatalogModel.BOYKISSER);
 		for (var value : entries) {
 			JsonObject item = value.getAsJsonObject();
 			String id = item.get("id").getAsString();
 			String name = item.get("name").getAsString();
-			if (!ID.matcher(id).matches() || !ids.add(id) || name.isBlank() || name.length() > 128
-					|| !"java-item".equals(item.get("format").getAsString())) throw new IllegalArgumentException("Invalid catalog model: " + id);
-			var model = readAsset(item.getAsJsonObject("model"), 4 * 1024 * 1024);
-			var textures = readAssets(item.getAsJsonObject("textures"), 16 * 1024 * 1024);
-			var parents = readAssets(item.getAsJsonObject("parents"), 4 * 1024 * 1024);
-			long totalBytes = model.bytes() + textures.values().stream().mapToLong(CatalogModel.Asset::bytes).sum()
-					+ parents.values().stream().mapToLong(CatalogModel.Asset::bytes).sum();
-			if (textures.isEmpty() || totalBytes > 32 * 1024 * 1024) throw new IllegalArgumentException("Invalid model asset size");
-			result.add(new CatalogModel(id, name, model, textures, parents));
+			String format = item.get("format").getAsString();
+			CatalogModel.Kind kind = item.has("kind") ? CatalogModel.Kind.valueOf(item.get("kind").getAsString().toUpperCase(java.util.Locale.ROOT)) : CatalogModel.Kind.ITEM;
+			String group = item.has("group") ? item.get("group").getAsString() : "Модели";
+			int color = item.has("color") ? 0xFF000000 | Integer.parseInt(item.get("color").getAsString().replace("#", ""), 16) & 0xFFFFFF : 0xFF6573FF;
+			if (!ID.matcher(id).matches() || !ids.add(id) || name.isBlank() || name.length() > 128 || !ID.matcher(format).matches() || group.length() > 64) throw new IllegalArgumentException("Invalid catalog model: " + id);
+			List<Identifier> targets = new ArrayList<>();
+			if (item.has("items")) {
+				if (item.getAsJsonArray("items").size() > 4096) throw new IllegalArgumentException("Too many target items");
+				for (var target : item.getAsJsonArray("items")) targets.add(Identifier.parse(target.getAsString()));
+			}
+			var model = readAsset(item.getAsJsonObject("model"), 16 * 1024 * 1024);
+			var textures = readAssets(item.getAsJsonObject("textures"), 16 * 1024 * 1024, kind == CatalogModel.Kind.MASCOT ? 256 : 32);
+			var parents = readAssets(item.getAsJsonObject("parents"), 4 * 1024 * 1024, 32);
+			long totalBytes = model.bytes() + textures.values().stream().mapToLong(CatalogModel.Asset::bytes).sum() + parents.values().stream().mapToLong(CatalogModel.Asset::bytes).sum();
+			if (totalBytes > 32 * 1024 * 1024) throw new IllegalArgumentException("Invalid model asset size");
+			result.add(new CatalogModel(id, name, kind, format, group, color, List.copyOf(targets), model, textures, parents));
 		}
 		return List.copyOf(result);
 	}
 
-	private static Map<Identifier, CatalogModel.Asset> readAssets(JsonObject object, int maximum) {
+	private static Map<Identifier, CatalogModel.Asset> readAssets(JsonObject object, int maximum, int count) {
 		if (object == null) return Map.of();
-		if (object.size() > 32) throw new IllegalArgumentException("Too many dependencies");
+		if (object.size() > count) throw new IllegalArgumentException("Too many dependencies");
 		Map<Identifier, CatalogModel.Asset> result = new HashMap<>();
 		for (var entry : object.entrySet()) result.put(Identifier.parse(entry.getKey()), readAsset(entry.getValue().getAsJsonObject(), maximum));
 		return Map.copyOf(result);

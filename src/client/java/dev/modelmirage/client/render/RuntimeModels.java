@@ -6,6 +6,7 @@ import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.vertex.PoseStack;
 import dev.modelmirage.client.mixin.SpriteLoaderInvoker;
 import dev.modelmirage.client.mixin.ItemStackRenderStateAccessor;
+import dev.modelmirage.client.catalog.ModelLoader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.StringReader;
@@ -19,6 +20,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.state.gui.GuiItemRenderState;
 import net.minecraft.client.renderer.item.TrackingItemStackRenderState;
@@ -46,6 +48,7 @@ import net.minecraft.client.resources.model.sprite.Material;
 import net.minecraft.client.resources.model.sprite.MaterialBaker;
 import net.minecraft.resources.Identifier;
 import org.joml.Vector3fc;
+import org.joml.Vector3f;
 import org.joml.Matrix3x2f;
 import org.joml.Matrix4f;
 import org.slf4j.LoggerFactory;
@@ -200,6 +203,24 @@ public final class RuntimeModels {
 		MODELS.clear();
 	}
 
+	/** Fit static geometry to a player's height, anchored at the feet. Future loaders can supply any native baked geometry. */
+	public static void submitPlayer(Identifier id, PoseStack pose, SubmitNodeCollector collector, int light, int overlay, int outline, float height) {
+		Loaded loaded = MODELS.get(id);
+		if (loaded == null) return;
+		float minX = Float.POSITIVE_INFINITY, minY = Float.POSITIVE_INFINITY, minZ = Float.POSITIVE_INFINITY;
+		float maxX = Float.NEGATIVE_INFINITY, maxY = Float.NEGATIVE_INFINITY, maxZ = Float.NEGATIVE_INFINITY;
+		for (var point : loaded.extents()) {
+			minX = Math.min(minX, point.x()); minY = Math.min(minY, point.y()); minZ = Math.min(minZ, point.z());
+			maxX = Math.max(maxX, point.x()); maxY = Math.max(maxY, point.y()); maxZ = Math.max(maxZ, point.z());
+		}
+		float scale = height / Math.max(0.01f, maxY - minY);
+		pose.pushPose();
+		pose.scale(scale, scale, scale);
+		pose.translate(-(minX + maxX) / 2, -minY, -(minZ + maxZ) / 2);
+		collector.submitItem(pose, ItemDisplayContext.NONE, light, overlay, outline, new int[0], loaded.quads(), ItemStackRenderState.FoilType.NONE);
+		pose.popPose();
+	}
+
 	public static void preview(GuiGraphicsExtractor graphics, Identifier id, float centerX, float centerY,
 			float size, float yaw, float pitch) {
 		Loaded loaded = MODELS.get(id);
@@ -215,12 +236,20 @@ public final class RuntimeModels {
 		loaded.properties().applyToLayer(layer, ItemDisplayContext.GUI);
 		PoseStack.Pose display = new PoseStack.Pose();
 		loaded.properties().transforms().getTransform(ItemDisplayContext.GUI).apply(false, display);
+		Vector3f minimum = new Vector3f(Float.POSITIVE_INFINITY), maximum = new Vector3f(Float.NEGATIVE_INFINITY);
+		for (var point : loaded.extents()) {
+			Vector3f transformed = display.pose().transformPosition(new Vector3f(point));
+			minimum.min(transformed); maximum.max(transformed);
+		}
+		Vector3f dimensions = new Vector3f(maximum).sub(minimum);
+		Vector3f center = new Vector3f(minimum).add(maximum).mul(0.5f);
+		float extent = Math.max(0.01f, Math.max(dimensions.x, Math.max(dimensions.y, dimensions.z)));
 		layer.setItemTransform(ItemTransform.NO_TRANSFORM);
 		layer.setExtents(() -> loaded.extents());
 		// Enlarge geometry before rendering so the native oversized-item renderer
 		// allocates a full-resolution preview instead of magnifying a 16px icon.
-		layer.setLocalTransform(new Matrix4f().translate(0.5f, 0.5f, 0.5f).scale(size / 16f).mul(display.pose())
-				.translate(0.5f, 0.5f, 0.5f).rotateY(yaw).rotateX(pitch).translate(-0.5f, -0.5f, -0.5f));
+		layer.setLocalTransform(new Matrix4f().translate(0.5f, 0.5f, 0.5f).scale(size / 16f / extent)
+				.rotateY(yaw).rotateX(pitch).translate(-center.x, -center.y, -center.z).mul(display.pose()));
 		layer.prepareQuadList().addAll(loaded.quads());
 		Matrix3x2f pose = new Matrix3x2f(graphics.pose()).translate(centerX - 8, centerY - 8);
 		graphics.guiRenderState.addItem(new GuiItemRenderState(pose, state, 0, 0, graphics.scissorStack.peek()));
@@ -228,5 +257,8 @@ public final class RuntimeModels {
 
 	private record Loaded(ItemModel model, Identifier atlasId, List<BakedQuad> quads, ModelRenderProperties properties, Vector3fc[] extents) { }
 	private record Resolved(String debugName, UnbakedModel wrapped, ResolvedModel parent) implements ResolvedModel { }
-	public record Prepared(Identifier id, ResolvedModel resolved, List<SpriteContents> sprites) { }
+	public record Prepared(Identifier id, ResolvedModel resolved, List<SpriteContents> sprites) implements ModelLoader.Prepared {
+		@Override public void install() { RuntimeModels.install(this); }
+		@Override public void discard() { sprites.forEach(SpriteContents::close); }
+	}
 }
