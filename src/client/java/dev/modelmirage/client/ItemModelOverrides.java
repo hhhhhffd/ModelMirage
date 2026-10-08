@@ -67,6 +67,8 @@ public final class ItemModelOverrides {
 	public static boolean usesModel(Identifier model) { return overrides.containsValue(model); }
 	public static Identifier selectedModel(Identifier item) { return overrides.get(item); }
 	public static int count() { return overrides.size(); }
+	/** Immutable view of item → model assignments. */
+	public static Map<Identifier, Identifier> all() { return overrides; }
 
 	public static void setModel(Identifier item, Identifier model) throws IOException {
 		Map<Identifier, Identifier> updated = new HashMap<>(overrides);

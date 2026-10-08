@@ -14,6 +14,7 @@ void main() {
     localPosition = UV0;
     halfSize = abs(UV0);
     radius = mod(Position.z, 1000.0);
-    border = floor(Position.z / 1000.0);
+    // Border width is packed in tenths so hairlines (0.6, 0.8) survive.
+    border = floor(Position.z / 1000.0) / 10.0;
     vertexColor = Color;
 }

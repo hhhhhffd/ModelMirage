@@ -33,6 +33,7 @@ public final class Visuals {
 		if (!Files.exists(CONFIG)) return;
 		try {
 			JsonObject config = JsonParser.parseString(Files.readString(CONFIG)).getAsJsonObject();
+			migratePanels(config);
 			for (VisualModule module : MODULES.values()) {
 				JsonObject saved = config.getAsJsonObject(module.id);
 				if (saved == null) continue;
@@ -41,12 +42,35 @@ public final class Visuals {
 				if (module.bind < -1 || module.bind > 348) throw new IllegalArgumentException("Invalid HUD key binding");
 				JsonObject settings = saved.has("settings") ? saved.getAsJsonObject("settings") : new JsonObject();
 				for (var entry : module.settings.entrySet()) {
-					if (settings.has(entry.getKey())) entry.getValue().set(settings.get(entry.getKey()));
+					if (!settings.has(entry.getKey())) continue;
+					// One outdated value must not discard the rest of the module.
+					try { entry.getValue().set(settings.get(entry.getKey())); }
+					catch (RuntimeException failure) { LoggerFactory.getLogger("ModelMirage").warn("Ignoring saved {}.{}: {}", module.id, entry.getKey(), failure.getMessage()); }
 				}
 			}
 		} catch (IOException | RuntimeException failure) {
 			LoggerFactory.getLogger("ModelMirage").error("Could not restore visual settings from {}", CONFIG, failure);
 		}
+	}
+
+	/** Before 0.4 every HUD panel was a boolean of the Interface module; keep those choices. */
+	private static void migratePanels(JsonObject config) {
+		JsonObject interfaceModule = config.getAsJsonObject("Interface");
+		if (interfaceModule == null || !interfaceModule.has("settings")) return;
+		JsonObject old = interfaceModule.getAsJsonObject("settings");
+		Map<String, String> panels = Map.of("logo", "Watermark", "infoHud", "Coordinates", "targetHud", "TargetHud", "effectHud", "Effects",
+				"inventoryHud", "Inventory", "armorHud", "Armor", "arrayList", "ArrayList", "activeBinds", "Keybinds");
+		boolean interfaceEnabled = !interfaceModule.has("enabled") || interfaceModule.get("enabled").getAsBoolean();
+		panels.forEach((setting, module) -> {
+			if (!old.has(setting) || config.has(module)) return;
+			JsonObject migrated = new JsonObject();
+			try { migrated.addProperty("enabled", interfaceEnabled && old.get(setting).getAsBoolean()); }
+			catch (RuntimeException failure) { LoggerFactory.getLogger("ModelMirage").warn("Ignoring old HUD panel switch {}: {}", setting, failure.getMessage()); return; }
+			config.add(module, migrated);
+		});
+		// Interface is no longer a switchable feature; a leftover binding could not be removed from the UI.
+		interfaceModule.addProperty("enabled", true);
+		interfaceModule.addProperty("bind", -1);
 	}
 
 	public static List<VisualModule> modules() { return List.copyOf(MODULES.values()); }

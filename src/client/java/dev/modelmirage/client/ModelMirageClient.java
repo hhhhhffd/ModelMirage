@@ -12,6 +12,7 @@ import dev.modelmirage.client.visual.VisualHud;
 import dev.modelmirage.client.visual.VisualPreferences;
 import dev.modelmirage.client.visual.HudInteraction;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents;
 import net.minecraft.client.gui.screens.ChatScreen;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
@@ -36,6 +37,9 @@ public class ModelMirageClient implements ClientModInitializer {
 			ScreenMouseEvents.allowMouseDrag(screen).register((current, event, dx, dy) -> !interaction.drag(event, current.width, current.height));
 			ScreenMouseEvents.allowMouseRelease(screen).register((current, event) -> !interaction.release(event));
 			ScreenMouseEvents.allowMouseScroll(screen).register((current, x, y, horizontal, vertical) -> !interaction.scroll(x, y, vertical, current.width, current.height));
+			// Esc and key binding presses belong to the popover while it is open, so the chat must not see them.
+			ScreenKeyboardEvents.allowKeyPress(screen).register((current, event) -> !interaction.popoverKey(event));
+			ScreenKeyboardEvents.allowCharType(screen).register((current, event) -> !interaction.popoverOpen());
 			ScreenEvents.afterExtract(screen).register((current, graphics, mouseX, mouseY, delta) -> interaction.draw(graphics, mouseX, mouseY, false));
 			ScreenEvents.remove(screen).register(current -> interaction.save());
 		});

@@ -15,6 +15,8 @@ public final class VisualPreferences {
 	public static float guiScale = 1;
 	public static float opacity = 1;
 	public static boolean animations = true;
+	/** Menu window glass blur in GUI units. */
+	public static float blur = 16;
 	private VisualPreferences() { }
 	public static void load() {
 		if (!Files.exists(CONFIG)) return;
@@ -22,8 +24,9 @@ public final class VisualPreferences {
 			JsonObject data = JsonParser.parseString(Files.readString(CONFIG)).getAsJsonObject();
 			AstolfoUi.ACCENT = 0xFF000000 | data.get("accent").getAsInt() & 0xFFFFFF;
 			guiScale = bounded(data.get("scale").getAsFloat(), 0.75f, 1.5f);
-			opacity = bounded(data.get("opacity").getAsFloat(), 0.65f, 1);
+			opacity = bounded(data.get("opacity").getAsFloat(), 0, 1);
 			animations = data.get("animations").getAsBoolean();
+			if (data.has("blur")) blur = bounded(data.get("blur").getAsFloat(), 0, 30);
 		} catch (IOException | RuntimeException failure) { LoggerFactory.getLogger("ModelMirage").error("Could not restore appearance settings", failure); }
 	}
 	private static float bounded(float value, float min, float max) {
@@ -33,7 +36,7 @@ public final class VisualPreferences {
 	public static void save() throws IOException {
 		JsonObject data = new JsonObject();
 		data.addProperty("accent", AstolfoUi.ACCENT); data.addProperty("scale", guiScale); data.addProperty("opacity", opacity);
-		data.addProperty("animations", animations);
+		data.addProperty("animations", animations); data.addProperty("blur", blur);
 		Files.createDirectories(CONFIG.getParent());
 		Path temporary = Files.createTempFile(CONFIG.getParent(), "appearance-", ".tmp");
 		try { Files.writeString(temporary, data.toString()); Files.move(temporary, CONFIG, StandardCopyOption.REPLACE_EXISTING); }

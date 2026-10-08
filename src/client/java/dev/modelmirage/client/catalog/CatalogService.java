@@ -101,7 +101,7 @@ public final class CatalogService {
 					cached = true;
 					LOGGER.warn("Catalog unavailable; using verified local index: {}", onlineError.toString());
 				} catch (Exception cacheError) {
-					error = "Каталог недоступен. Проверь соединение и нажми «Обновить».";
+					error = "Каталог недоступен. Проверь соединение и нажми \"Обновить\".";
 					LOGGER.error("Could not load catalog {}", SOURCE, onlineError);
 					LOGGER.warn("No usable catalog cache: {}", cacheError.toString());
 				}

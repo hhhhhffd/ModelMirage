@@ -74,6 +74,11 @@ public final class AstolfoUi {
 		return result;
 	}
 
+	/** Relative luminance 0..1, used to pick readable text on accent fills. */
+	public static float luminance(int color) {
+		return (0.2126f * (color >> 16 & 255) + 0.7152f * (color >> 8 & 255) + 0.0722f * (color & 255)) / 255f;
+	}
+
 	public static int opacity(int color, float amount) {
 		return Math.round((color >>> 24) * Math.clamp(amount, 0, 1)) << 24 | color & 0xFFFFFF;
 	}
@@ -111,7 +116,7 @@ public final class AstolfoUi {
 		ScreenRectangle bounds = new ScreenRectangle((int) x, (int) y, (int) Math.ceil(width), (int) Math.ceil(height)).transformMaxBounds(pose);
 		ScreenRectangle scissor = graphics.scissorStack.peek();
 		if (scissor != null) bounds = bounds.intersection(scissor);
-		float meta = Math.min(radius, Math.min(width, height) / 2) + border * 1000f;
+		float meta = Math.min(Math.min(radius, Math.min(width, height) / 2), 999) + Math.round(border * 10) * 1000f;
 		graphics.guiRenderState.addGuiElement(new ShapeRenderState(SHAPE, pose, x, y, width, height,
 				meta, opacity(top, alpha), opacity(bottom, alpha), scissor, bounds, TextureSetup.noTexture()));
 	}
@@ -142,7 +147,7 @@ public final class AstolfoUi {
 		ScreenRectangle scissor = graphics.scissorStack.peek();
 		if (scissor != null) bounds = bounds.intersection(scissor);
 		int color = opacity(tint, alpha);
-		graphics.guiRenderState.addGuiElement(new ShapeRenderState(HEAD, pose, x, y, size, size, Math.min(4, size / 2f) + (player ? 0 : 1000f), color, color, scissor, bounds, textureSetup));
+		graphics.guiRenderState.addGuiElement(new ShapeRenderState(HEAD, pose, x, y, size, size, Math.min(4, size / 2f) + (player ? 0 : 10000f), color, color, scissor, bounds, textureSetup));
 	}
 
 	public static final class Face {

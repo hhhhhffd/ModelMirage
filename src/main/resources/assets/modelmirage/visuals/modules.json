@@ -1,6 +1,412 @@
 [
   {
+    "id": "Interface",
+    "name": "Интерфейс",
+    "category": "hud",
+    "enabled": true,
+    "settings": [
+      {
+        "id": "hudScale",
+        "name": "Масштаб HUD",
+        "type": "number",
+        "value": 0.65,
+        "min": 0.5,
+        "max": 1.5,
+        "step": 0.05,
+        "unit": "x"
+      },
+      {
+        "id": "blur",
+        "name": "Размытие стекла",
+        "type": "number",
+        "value": 8,
+        "min": 0,
+        "max": 20,
+        "step": 1,
+        "unit": "px"
+      },
+      {
+        "id": "tint",
+        "name": "Тонировка",
+        "type": "number",
+        "value": 0.35,
+        "min": 0,
+        "max": 0.9,
+        "step": 0.05
+      },
+      {
+        "id": "accentIcons",
+        "name": "Цветные иконки",
+        "type": "boolean",
+        "value": true
+      }
+    ]
+  },
+  {
+    "id": "Watermark",
+    "name": "Watermark",
+    "category": "panel",
+    "enabled": true,
+    "settings": [
+      {
+        "id": "style",
+        "name": "Фон",
+        "type": "choice",
+        "value": "glass",
+        "options": [
+          {
+            "id": "glass",
+            "name": "Стекло"
+          },
+          {
+            "id": "solid",
+            "name": "Тёмный"
+          },
+          {
+            "id": "none",
+            "name": "Нет"
+          }
+        ]
+      },
+      {
+        "id": "shadow",
+        "name": "Тень",
+        "type": "boolean",
+        "value": true
+      },
+      {
+        "id": "showLogo",
+        "name": "Логотип",
+        "type": "boolean",
+        "value": true
+      },
+      {
+        "id": "showFps",
+        "name": "FPS",
+        "type": "boolean",
+        "value": true
+      },
+      {
+        "id": "showPing",
+        "name": "Пинг",
+        "type": "boolean",
+        "value": true
+      },
+      {
+        "id": "showName",
+        "name": "Ник",
+        "type": "boolean",
+        "value": true
+      },
+      {
+        "id": "showTime",
+        "name": "Время",
+        "type": "boolean",
+        "value": false
+      },
+      {
+        "id": "showHead",
+        "name": "Голова игрока",
+        "type": "boolean",
+        "value": true
+      }
+    ]
+  },
+  {
+    "id": "Coordinates",
+    "name": "Координаты",
+    "category": "panel",
+    "enabled": true,
+    "settings": [
+      {
+        "id": "style",
+        "name": "Фон",
+        "type": "choice",
+        "value": "glass",
+        "options": [
+          {
+            "id": "glass",
+            "name": "Стекло"
+          },
+          {
+            "id": "solid",
+            "name": "Тёмный"
+          },
+          {
+            "id": "none",
+            "name": "Нет"
+          }
+        ]
+      },
+      {
+        "id": "shadow",
+        "name": "Тень",
+        "type": "boolean",
+        "value": true
+      },
+      {
+        "id": "showCoords",
+        "name": "Координаты",
+        "type": "boolean",
+        "value": true
+      },
+      {
+        "id": "showSpeed",
+        "name": "Скорость",
+        "type": "boolean",
+        "value": true
+      },
+      {
+        "id": "showDirection",
+        "name": "Направление",
+        "type": "boolean",
+        "value": false
+      }
+    ]
+  },
+  {
+    "id": "TargetHud",
+    "name": "Цель",
+    "category": "panel",
+    "enabled": true,
+    "settings": [
+      {
+        "id": "style",
+        "name": "Фон",
+        "type": "choice",
+        "value": "glass",
+        "options": [
+          {
+            "id": "glass",
+            "name": "Стекло"
+          },
+          {
+            "id": "solid",
+            "name": "Тёмный"
+          },
+          {
+            "id": "none",
+            "name": "Нет"
+          }
+        ]
+      },
+      {
+        "id": "shadow",
+        "name": "Тень",
+        "type": "boolean",
+        "value": true
+      },
+      {
+        "id": "showHead",
+        "name": "Голова",
+        "type": "boolean",
+        "value": true
+      },
+      {
+        "id": "showHealth",
+        "name": "Здоровье числом",
+        "type": "boolean",
+        "value": true
+      },
+      {
+        "id": "showArmor",
+        "name": "Броня цели",
+        "type": "boolean",
+        "value": false
+      }
+    ]
+  },
+  {
+    "id": "Effects",
+    "name": "Эффекты",
+    "category": "panel",
+    "enabled": true,
+    "settings": [
+      {
+        "id": "style",
+        "name": "Фон",
+        "type": "choice",
+        "value": "glass",
+        "options": [
+          {
+            "id": "glass",
+            "name": "Стекло"
+          },
+          {
+            "id": "solid",
+            "name": "Тёмный"
+          },
+          {
+            "id": "none",
+            "name": "Нет"
+          }
+        ]
+      },
+      {
+        "id": "shadow",
+        "name": "Тень",
+        "type": "boolean",
+        "value": true
+      },
+      {
+        "id": "showIcons",
+        "name": "Иконки",
+        "type": "boolean",
+        "value": true
+      },
+      {
+        "id": "showTimer",
+        "name": "Таймер",
+        "type": "boolean",
+        "value": true
+      }
+    ]
+  },
+  {
+    "id": "Inventory",
+    "name": "Инвентарь",
+    "category": "panel",
+    "enabled": true,
+    "settings": [
+      {
+        "id": "style",
+        "name": "Фон",
+        "type": "choice",
+        "value": "glass",
+        "options": [
+          {
+            "id": "glass",
+            "name": "Стекло"
+          },
+          {
+            "id": "solid",
+            "name": "Тёмный"
+          },
+          {
+            "id": "none",
+            "name": "Нет"
+          }
+        ]
+      },
+      {
+        "id": "shadow",
+        "name": "Тень",
+        "type": "boolean",
+        "value": true
+      }
+    ]
+  },
+  {
+    "id": "Armor",
+    "name": "Броня",
+    "category": "panel",
+    "enabled": true,
+    "settings": [
+      {
+        "id": "style",
+        "name": "Фон",
+        "type": "choice",
+        "value": "glass",
+        "options": [
+          {
+            "id": "glass",
+            "name": "Стекло"
+          },
+          {
+            "id": "solid",
+            "name": "Тёмный"
+          },
+          {
+            "id": "none",
+            "name": "Нет"
+          }
+        ]
+      },
+      {
+        "id": "shadow",
+        "name": "Тень",
+        "type": "boolean",
+        "value": true
+      },
+      {
+        "id": "showDurability",
+        "name": "Прочность",
+        "type": "boolean",
+        "value": true
+      }
+    ]
+  },
+  {
+    "id": "ArrayList",
+    "name": "Активные модули",
+    "category": "panel",
+    "enabled": true,
+    "settings": [
+      {
+        "id": "style",
+        "name": "Фон",
+        "type": "choice",
+        "value": "glass",
+        "options": [
+          {
+            "id": "glass",
+            "name": "Стекло"
+          },
+          {
+            "id": "solid",
+            "name": "Тёмный"
+          },
+          {
+            "id": "none",
+            "name": "Нет"
+          }
+        ]
+      },
+      {
+        "id": "shadow",
+        "name": "Тень",
+        "type": "boolean",
+        "value": true
+      }
+    ]
+  },
+  {
+    "id": "Keybinds",
+    "name": "Клавиши",
+    "category": "panel",
+    "enabled": true,
+    "settings": [
+      {
+        "id": "style",
+        "name": "Фон",
+        "type": "choice",
+        "value": "glass",
+        "options": [
+          {
+            "id": "glass",
+            "name": "Стекло"
+          },
+          {
+            "id": "solid",
+            "name": "Тёмный"
+          },
+          {
+            "id": "none",
+            "name": "Нет"
+          }
+        ]
+      },
+      {
+        "id": "shadow",
+        "name": "Тень",
+        "type": "boolean",
+        "value": true
+      }
+    ]
+  },
+  {
     "id": "Crosshair",
+    "name": "Прицел",
     "category": "hud",
     "settings": [
       {
@@ -41,77 +447,18 @@
         "name": "Цвет при наведении",
         "type": "boolean",
         "value": true
+      },
+      {
+        "id": "color",
+        "name": "Цвет",
+        "type": "color",
+        "value": -1
       }
-    ],
-    "name": "Прицел"
-  },
-  {
-    "id": "Interface",
-    "category": "hud",
-    "settings": [
-      {
-        "id": "targetHud",
-        "name": "Цель",
-        "type": "boolean",
-        "value": true
-      },
-      {
-        "id": "effectHud",
-        "name": "Эффекты",
-        "type": "boolean",
-        "value": true
-      },
-      {
-        "id": "inventoryHud",
-        "name": "Инвентарь",
-        "type": "boolean",
-        "value": true
-      },
-      {
-        "id": "arrayList",
-        "name": "Активные модули",
-        "type": "boolean",
-        "value": true
-      },
-      {
-        "id": "armorHud",
-        "name": "Броня",
-        "type": "boolean",
-        "value": true
-      },
-      {
-        "id": "infoHud",
-        "name": "Координаты и скорость",
-        "type": "boolean",
-        "value": true
-      },
-      {
-        "id": "logo",
-        "name": "Watermark",
-        "type": "boolean",
-        "value": true
-      },
-      {
-        "id": "activeBinds",
-        "name": "Назначенные клавиши",
-        "type": "boolean",
-        "value": true
-      },
-      {
-        "id": "hudScale",
-        "name": "Масштаб HUD",
-        "type": "number",
-        "value": 0.5,
-        "min": 0.5,
-        "max": 1.5,
-        "step": 0.05
-      }
-    ],
-    "name": "Панели HUD",
-    "enabled": true
+    ]
   },
   {
     "id": "NoRender",
+    "name": "Скрыть элементы",
     "category": "hud",
     "settings": [
       {
@@ -126,14 +473,13 @@
         "type": "boolean",
         "value": false
       }
-    ],
-    "name": "Скрыть элементы"
+    ]
   },
   {
     "id": "BoyKisser",
-    "category": "hud",
-    "settings": [],
     "name": "Персонаж HUD",
-    "enabled": true
+    "category": "mascot",
+    "enabled": true,
+    "settings": []
   }
 ]
