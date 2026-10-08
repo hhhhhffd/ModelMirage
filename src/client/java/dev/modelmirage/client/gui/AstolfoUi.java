@@ -50,6 +50,10 @@ public final class AstolfoUi {
 			.withLocation(Identifier.fromNamespaceAndPath("modelmirage", "pipeline/head"))
 			.withVertexShader(Identifier.fromNamespaceAndPath("modelmirage", "core/shape"))
 			.withFragmentShader(Identifier.fromNamespaceAndPath("modelmirage", "core/head")).build());
+	private static final RenderPipeline GLASS = RenderPipelines.register(RenderPipeline.builder(RenderPipelines.GUI_TEXTURED_SNIPPET)
+			.withLocation(Identifier.fromNamespaceAndPath("modelmirage", "pipeline/glass"))
+			.withVertexShader(Identifier.fromNamespaceAndPath("modelmirage", "core/glass"))
+			.withFragmentShader(Identifier.fromNamespaceAndPath("modelmirage", "core/glass")).build());
 
 	private AstolfoUi() { }
 
@@ -107,8 +111,27 @@ public final class AstolfoUi {
 		ScreenRectangle bounds = new ScreenRectangle((int) x, (int) y, (int) Math.ceil(width), (int) Math.ceil(height)).transformMaxBounds(pose);
 		ScreenRectangle scissor = graphics.scissorStack.peek();
 		if (scissor != null) bounds = bounds.intersection(scissor);
+		float meta = Math.min(radius, Math.min(width, height) / 2) + border * 1000f;
 		graphics.guiRenderState.addGuiElement(new ShapeRenderState(SHAPE, pose, x, y, width, height,
-				Math.min(radius, Math.min(width, height) / 2), border, opacity(top, alpha), opacity(bottom, alpha), scissor, bounds, TextureSetup.noTexture()));
+				meta, opacity(top, alpha), opacity(bottom, alpha), scissor, bounds, TextureSetup.noTexture()));
+	}
+
+	/**
+	 * Liquid glass over the game frame: blurred, refracted at the rim and tinted by {@code tint}
+	 * (its alpha is the tint strength). Blur is in GUI units, at most 63.
+	 */
+	public static void glass(GuiGraphicsExtractor graphics, float x, float y, float width, float height, float radius, float blur, int tint) {
+		if (width <= 0 || height <= 0 || alpha <= 0.004f) return;
+		var view = Backdrop.request();
+		if (view == null) { shape(graphics, x, y, width, height, radius, 0, tint, tint); return; }
+		Matrix3x2f pose = new Matrix3x2f(graphics.pose());
+		ScreenRectangle bounds = new ScreenRectangle((int) x, (int) y, (int) Math.ceil(width), (int) Math.ceil(height)).transformMaxBounds(pose);
+		ScreenRectangle scissor = graphics.scissorStack.peek();
+		if (scissor != null) bounds = bounds.intersection(scissor);
+		float clampedRadius = Math.min(Math.min(radius, Math.min(width, height) / 2), 127.5f);
+		float meta = Math.round(clampedRadius * 2) + 256f * Math.clamp(Math.round(blur), 0, 63) + 16384f * Math.round(Math.clamp(alpha, 0, 1) * 63);
+		TextureSetup setup = TextureSetup.singleTexture(view, RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));
+		graphics.guiRenderState.addGuiElement(new ShapeRenderState(GLASS, pose, x, y, width, height, meta, tint, tint, scissor, bounds, setup));
 	}
 
 	public static void head(GuiGraphicsExtractor graphics, Identifier textureId, int x, int y, int size, boolean player, int tint) {
@@ -119,7 +142,7 @@ public final class AstolfoUi {
 		ScreenRectangle scissor = graphics.scissorStack.peek();
 		if (scissor != null) bounds = bounds.intersection(scissor);
 		int color = opacity(tint, alpha);
-		graphics.guiRenderState.addGuiElement(new ShapeRenderState(HEAD, pose, x, y, size, size, Math.min(4, size / 2f), player ? 0 : 1, color, color, scissor, bounds, textureSetup));
+		graphics.guiRenderState.addGuiElement(new ShapeRenderState(HEAD, pose, x, y, size, size, Math.min(4, size / 2f) + (player ? 0 : 1000f), color, color, scissor, bounds, textureSetup));
 	}
 
 	public static final class Face {

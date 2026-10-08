@@ -161,7 +161,7 @@ public final class VisualHud {
 
 	private static void background(GuiGraphicsExtractor graphics, float x, float y, float width, float height, float radius) {
 		AstolfoUi.shadow(graphics, x, y, width, height, radius);
-		AstolfoUi.shape(graphics, x, y, width, height, radius, 0, 0xFF000000, 0xFF000000);
+		AstolfoUi.glass(graphics, x, y, width, height, radius, 6, 0x5A0C0C10);
 	}
 
 	private static void end(GuiGraphicsExtractor graphics) { AstolfoUi.alpha = 1; graphics.pose().popMatrix(); }

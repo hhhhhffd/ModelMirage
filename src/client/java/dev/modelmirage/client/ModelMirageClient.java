@@ -43,6 +43,7 @@ public class ModelMirageClient implements ClientModInitializer {
 			CatalogService.close();
 			RuntimeModels.close();
 			MascotAnimations.close();
+			dev.modelmirage.client.gui.Backdrop.close();
 		});
 
 		var category = KeyMapping.Category.register(Identifier.fromNamespaceAndPath("modelmirage", "controls"));
