@@ -383,7 +383,8 @@ public final class VisualHud {
 		boolean stored = false;
 		for (int slot = 9; slot < 36 && !stored; slot++) stored = !inventory.getItem(slot).isEmpty();
 		// An empty glass block in the middle of the screen is noise; show it only when there is something to see.
-		Panel panel = begin(graphics, "inventory", "Inventory", width / 2f - 86, height * 0.70f, 172, 64, on("Inventory", editor) && (editor || stored), true, editor);
+		// The default sits right above the armor panel (at most 31 high), which sits above the hotbar.
+		Panel panel = begin(graphics, "inventory", "Inventory", width / 2f - 94, height - 44 / hudScale - 31 - 8 - 64, 188, 64, on("Inventory", editor) && (editor || stored), true, editor);
 		if (panel == null) return;
 		for (int slot = 0; slot < 27; slot++) {
 			ItemStack item = Minecraft.getInstance().player.getInventory().getItem(slot + 9);
@@ -391,7 +392,8 @@ public final class VisualHud {
 				var examples = List.of(Items.DIAMOND_SWORD, Items.GOLDEN_APPLE, Items.ENDER_PEARL, Items.COBWEB, Items.OBSIDIAN, Items.TOTEM_OF_UNDYING, Items.DIAMOND_PICKAXE, Items.BOW, Items.ARROW);
 				item = new ItemStack(examples.get(slot), slot == 0 || slot == 5 || slot == 6 || slot == 7 ? 1 : 64);
 			}
-			int x = panel.x() + 5 + slot % 9 * 18;
+			// 20px pitch leaves room for stack counts, which overhang the 16px icon.
+			int x = panel.x() + 5 + slot % 9 * 20;
 			int y = panel.y() + 5 + slot / 9 * 18;
 			graphics.item(item, x, y);
 			graphics.itemDecorations(Minecraft.getInstance().font, item, x, y);
@@ -402,14 +404,21 @@ public final class VisualHud {
 	private static void armor(GuiGraphicsExtractor graphics, boolean editor, int width, int height) {
 		boolean durability = Visuals.module("Armor").bool("showDurability");
 		EquipmentSlot[] slots = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
-		boolean worn = false;
-		for (EquipmentSlot slot : slots) worn |= !Minecraft.getInstance().player.getItemBySlot(slot).isEmpty();
-		Panel panel = begin(graphics, "armor", "Armor", width / 2f + 10, height - 62, 86, durability ? 31 : 26, on("Armor", editor) && (editor || worn), true, editor);
-		if (panel == null) return;
 		var examples = List.of(Items.DIAMOND_HELMET, Items.DIAMOND_CHESTPLATE, Items.DIAMOND_LEGGINGS, Items.DIAMOND_BOOTS);
+		// Only worn pieces are listed, so the panel is as wide as the armor; the editor shows a full sample set.
+		List<ItemStack> shown = new ArrayList<>();
 		for (int index = 0; index < slots.length; index++) {
 			ItemStack item = Minecraft.getInstance().player.getItemBySlot(slots[index]);
 			if (editor && item.isEmpty()) item = new ItemStack(examples.get(index));
+			if (!item.isEmpty()) shown.add(item);
+		}
+		int panelHeight = durability ? 31 : 26;
+		// Above the hotbar and the health/food rows (44 GUI pixels), whatever the HUD scale.
+		Panel panel = begin(graphics, "armor", "Armor", width / 2f + 10, height - 44 / hudScale - panelHeight, 6 + Math.max(1, shown.size()) * 20, panelHeight,
+				on("Armor", editor) && !shown.isEmpty(), true, editor);
+		if (panel == null) return;
+		for (int index = 0; index < shown.size(); index++) {
+			ItemStack item = shown.get(index);
 			int x = panel.x() + 5 + index * 20;
 			graphics.item(item, x, panel.y() + 5);
 			if (durability && item.isBarVisible()) {
