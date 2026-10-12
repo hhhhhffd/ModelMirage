@@ -56,6 +56,8 @@ public final class CatalogService {
 	private static final Map<Identifier, CatalogModel> LOADED = new ConcurrentHashMap<>();
 	private static final Map<String, Decoder> LOADERS = new ConcurrentHashMap<>();
 	private static volatile List<CatalogModel> models = List.of(CatalogModel.builtinMascot());
+	/** Translation key of the catalog error shown to the player. */
+	public static final String ERROR_UNAVAILABLE = "modelmirage.catalog.error.unavailable";
 	private static volatile String error = "";
 	private static volatile boolean loading;
 	private static volatile boolean cached;
@@ -82,6 +84,7 @@ public final class CatalogService {
 	private record Decoder(Set<CatalogModel.Kind> kinds, ModelLoader loader) { }
 
 	public static List<CatalogModel> models() { return models; }
+	/** Empty, or a translation key such as {@link #ERROR_UNAVAILABLE}. */
 	public static String error() { return error; }
 	public static boolean loading() { return loading; }
 	public static boolean cached() { return cached; }
@@ -107,7 +110,7 @@ public final class CatalogService {
 					cached = true;
 					LOGGER.warn("Catalog unavailable; using verified local index: {}", onlineError.toString());
 				} catch (Exception cacheError) {
-					error = "Каталог недоступен. Проверь соединение и нажми \"Обновить\".";
+					error = ERROR_UNAVAILABLE;
 					LOGGER.error("Could not load catalog {}", SOURCE, onlineError);
 					LOGGER.warn("No usable catalog cache: {}", cacheError.toString());
 				}
@@ -167,7 +170,7 @@ public final class CatalogService {
 			String name = item.get("name").getAsString();
 			String format = item.get("format").getAsString();
 			CatalogModel.Kind kind = item.has("kind") ? CatalogModel.Kind.valueOf(item.get("kind").getAsString().toUpperCase(java.util.Locale.ROOT)) : CatalogModel.Kind.ITEM;
-			String group = item.has("group") ? item.get("group").getAsString() : "Модели";
+			String group = item.has("group") ? item.get("group").getAsString() : "";
 			int color = item.has("color") ? 0xFF000000 | Integer.parseInt(item.get("color").getAsString().replace("#", ""), 16) & 0xFFFFFF : 0xFF6573FF;
 			if (!ID.matcher(id).matches() || !ids.add(id) || name.isBlank() || name.length() > 128 || !ID.matcher(format).matches() || group.length() > 64) throw new IllegalArgumentException("Invalid catalog model: " + id);
 			List<Identifier> targets = new ArrayList<>();
