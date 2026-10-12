@@ -75,10 +75,10 @@ public final class RuntimeModels {
 		try {
 			long totalPixels = 0;
 			for (var entry : textures.entrySet()) {
-				SpriteContents sprite = pngSprite(entry.getKey(), entry.getValue());
-				sprites.add(sprite);
-				totalPixels += (long) sprite.width() * sprite.height();
+				// Counted from the header, so the texture that would cross the budget is never decoded.
+				totalPixels += pngPixels(entry.getKey(), entry.getValue());
 				if (totalPixels > MAX_PIXELS) throw new IOException("Texture dimensions exceed limits: " + entry.getKey());
+				sprites.add(pngSprite(entry.getKey(), entry.getValue()));
 			}
 			sprites.add(MissingTextureAtlasSprite.create());
 			return new Prepared(id, resolved, sprites);
@@ -88,8 +88,8 @@ public final class RuntimeModels {
 		}
 	}
 
-	/** Validates the PNG header before decoding so oversized images are rejected without allocating them. */
-	static SpriteContents pngSprite(Identifier id, byte[] png) throws IOException {
+	/** Pixel count from the PNG header, which is validated without decoding the image. */
+	static long pngPixels(Identifier id, byte[] png) throws IOException {
 		if (png.length < 33 || ByteBuffer.wrap(png).getLong() != 0x89504E470D0A1A0AL
 				|| ByteBuffer.wrap(png, 12, 4).getInt() != 0x49484452) throw new IOException("Invalid PNG: " + id);
 		int width = ByteBuffer.wrap(png, 16, 4).getInt();
@@ -97,6 +97,14 @@ public final class RuntimeModels {
 		if (width <= 0 || height <= 0 || width > MAX_TEXTURE_SIZE || height > MAX_TEXTURE_SIZE) {
 			throw new IOException("Texture dimensions exceed limits: " + id);
 		}
+		return (long) width * height;
+	}
+
+	/** Validates the PNG header before decoding so oversized images are rejected without allocating them. */
+	static SpriteContents pngSprite(Identifier id, byte[] png) throws IOException {
+		pngPixels(id, png);
+		int width = ByteBuffer.wrap(png, 16, 4).getInt();
+		int height = ByteBuffer.wrap(png, 20, 4).getInt();
 		return new SpriteContents(id, new FrameSize(width, height), NativeImage.read(new ByteArrayInputStream(png)));
 	}
 

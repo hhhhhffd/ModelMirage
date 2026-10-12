@@ -68,16 +68,20 @@ public final class AssimpModels {
 			for (int i = 0; i < spriteOf.length; i++) {
 				AssimpScene.Material material = scene.materials().get(i);
 				TextureSource source = resolveTexture(material.texture(), embeddedNames, textures.keySet(), untextured);
-				if (source.embedded() >= 0) spriteOf[i] = embeddedSprite(id, source.embedded(), scene, sprites);
-				else if (source.catalog() != null) spriteOf[i] = catalogSprite(source.catalog(), textures, sprites);
-				if (spriteOf[i] == null) {
-					spriteOf[i] = id.withSuffix("/color_" + HexFormat.of().toHexDigits(material.color()));
-					sprites.computeIfAbsent(spriteOf[i], sprite -> solid(sprite, material.color()));
-				}
+				if (source.embedded() >= 0) spriteOf[i] = id.withSuffix("/embedded_" + source.embedded());
+				else if (source.catalog() != null) spriteOf[i] = source.catalog();
+				else spriteOf[i] = id.withSuffix("/color_" + HexFormat.of().toHexDigits(material.color()));
 				translucent[i] = material.color() >>> 24 < 255;
+				if (sprites.containsKey(spriteOf[i])) continue;
+				// Sizes come from headers, so the texture that would cross the budget is never decoded.
+				if (source.embedded() >= 0) pixels += embeddedPixels(spriteOf[i], scene.embedded().get(source.embedded()));
+				else if (source.catalog() != null) pixels += RuntimeModels.pngPixels(source.catalog(), textures.get(source.catalog()));
+				else pixels += SOLID_SIZE * SOLID_SIZE;
+				if (pixels > RuntimeModels.MAX_PIXELS) throw new IOException("Texture dimensions exceed limits: " + entry.id());
+				if (source.embedded() >= 0) sprites.put(spriteOf[i], embeddedSprite(spriteOf[i], scene.embedded().get(source.embedded())));
+				else if (source.catalog() != null) sprites.put(spriteOf[i], RuntimeModels.pngSprite(source.catalog(), textures.get(source.catalog())));
+				else sprites.put(spriteOf[i], solid(spriteOf[i], material.color()));
 			}
-			for (SpriteContents sprite : sprites.values()) pixels += (long) sprite.width() * sprite.height();
-			if (pixels > RuntimeModels.MAX_PIXELS) throw new IOException("Texture dimensions exceed limits: " + entry.id());
 			List<SpriteContents> atlas = new ArrayList<>(sprites.values());
 			atlas.add(MissingTextureAtlasSprite.create());
 			var geometry = new MeshGeometry(normalized(scene.positions()), scene.uvs(), scene.materialOf(), spriteOf, translucent);
@@ -122,19 +126,6 @@ public final class AssimpModels {
 		return lone != null ? new TextureSource(-1, lone) : TextureSource.NONE;
 	}
 
-	private static Identifier embeddedSprite(Identifier model, int index, AssimpScene.Scene scene,
-			Map<Identifier, SpriteContents> sprites) throws IOException {
-		Identifier sprite = model.withSuffix("/embedded_" + index);
-		if (!sprites.containsKey(sprite)) sprites.put(sprite, embeddedSprite(sprite, scene.embedded().get(index)));
-		return sprite;
-	}
-
-	private static Identifier catalogSprite(Identifier texture, Map<Identifier, byte[]> textures,
-			Map<Identifier, SpriteContents> sprites) throws IOException {
-		if (!sprites.containsKey(texture)) sprites.put(texture, RuntimeModels.pngSprite(texture, textures.get(texture)));
-		return texture;
-	}
-
 	static String stem(String path) {
 		String name = AssimpScene.basename(path);
 		int dot = name.lastIndexOf('.');
@@ -145,6 +136,23 @@ public final class AssimpModels {
 		NativeImage image = new NativeImage(SOLID_SIZE, SOLID_SIZE, false);
 		image.fillRect(0, 0, SOLID_SIZE, SOLID_SIZE, argb);
 		return new SpriteContents(id, new FrameSize(SOLID_SIZE, SOLID_SIZE), image);
+	}
+
+	/** Pixel count of an embedded texture, read from its header when it is compressed. */
+	static long embeddedPixels(Identifier id, AssimpScene.Embedded texture) throws IOException {
+		if (texture.argb() != null) return (long) texture.width() * texture.height();
+		ByteBuffer encoded = MemoryUtil.memAlloc(texture.encoded().length).put(texture.encoded()).flip();
+		try (MemoryStack stack = MemoryStack.stackPush()) {
+			IntBuffer width = stack.mallocInt(1), height = stack.mallocInt(1), channels = stack.mallocInt(1);
+			if (!STBImage.stbi_info_from_memory(encoded, width, height, channels)) throw new IOException("Unsupported embedded texture: " + id);
+			int w = width.get(0), h = height.get(0);
+			if (w <= 0 || h <= 0 || w > RuntimeModels.MAX_TEXTURE_SIZE || h > RuntimeModels.MAX_TEXTURE_SIZE) {
+				throw new IOException("Texture dimensions exceed limits: " + id);
+			}
+			return (long) w * h;
+		} finally {
+			MemoryUtil.memFree(encoded);
+		}
 	}
 
 	private static SpriteContents embeddedSprite(Identifier id, AssimpScene.Embedded texture) throws IOException {

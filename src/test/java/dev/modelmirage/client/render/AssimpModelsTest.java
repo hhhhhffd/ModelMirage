@@ -174,4 +174,22 @@ class AssimpModelsTest {
 		assertEquals(-1, TextureSource.NONE.embedded());
 		assertNull(TextureSource.NONE.catalog());
 	}
+
+	@Test
+	void measuresEmbeddedTexturesWithoutDecodingThem() throws IOException {
+		assertEquals(6, AssimpModels.embeddedPixels(id("e"), new AssimpScene.Embedded("a.png", Fixtures.png(3, 2, 0xFF000000), 0, 0, null)));
+		assertEquals(12, AssimpModels.embeddedPixels(id("e"), new AssimpScene.Embedded("raw", null, 4, 3, new int[12])));
+	}
+
+	@Test
+	void rejectsOversizedEmbeddedTextureByItsHeader() {
+		IOException failure = assertThrows(IOException.class,
+				() -> AssimpModels.embeddedPixels(id("e"), new AssimpScene.Embedded("a.png", Fixtures.png(2049, 1, 0xFF000000), 0, 0, null)));
+		assertTrue(failure.getMessage().startsWith("Texture dimensions exceed limits"), failure.getMessage());
+	}
+
+	@Test
+	void rejectsUnreadableEmbeddedTexture() {
+		assertThrows(IOException.class, () -> AssimpModels.embeddedPixels(id("e"), new AssimpScene.Embedded("a.png", new byte[] {1, 2, 3}, 0, 0, null)));
+	}
 }

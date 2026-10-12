@@ -120,6 +120,13 @@ final class AssimpScene {
 		List<Material> materials = new ArrayList<>();
 		for (int i = 0; i < scene.mNumMaterials(); i++) materials.add(material(AIMaterial.create(scene.mMaterials().get(i))));
 		List<Embedded> embedded = new ArrayList<>();
+		long rawPixels = 0;
+		for (int i = 0; i < scene.mNumTextures(); i++) {
+			AITexture texture = AITexture.create(scene.mTextures().get(i));
+			// Uncompressed texels are copied into Java arrays; bound them all before copying any.
+			if (texture.mHeight() != 0) rawPixels += Integer.toUnsignedLong(texture.mWidth()) * Integer.toUnsignedLong(texture.mHeight());
+			if (rawPixels > RuntimeModels.MAX_PIXELS) throw new IOException("Embedded textures exceed size limit");
+		}
 		for (int i = 0; i < scene.mNumTextures(); i++) embedded.add(embedded(AITexture.create(scene.mTextures().get(i))));
 		return new Scene(positions, uvs, materialOf, List.copyOf(materials), List.copyOf(embedded));
 	}

@@ -72,4 +72,10 @@ class RuntimeModelsTest {
 		IOException failure = rejected(png);
 		assertTrue(!failure.getMessage().startsWith("Texture dimensions exceed limits"), failure.getMessage());
 	}
+
+	@Test
+	void countsPixelsFromTheHeaderAlone() throws IOException {
+		assertEquals(2048L * 2048, RuntimeModels.pngPixels(ID, Fixtures.pngHeader(2048, 2048)));
+		assertThrows(IOException.class, () -> RuntimeModels.pngPixels(ID, Fixtures.pngHeader(2049, 1)));
+	}
 }
