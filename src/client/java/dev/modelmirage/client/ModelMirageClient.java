@@ -4,9 +4,11 @@ import com.mojang.blaze3d.platform.InputConstants;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import dev.modelmirage.client.catalog.CatalogService;
 import dev.modelmirage.client.render.RuntimeModels;
 import dev.modelmirage.client.render.MascotAnimations;
+import dev.modelmirage.client.visual.SystemStats;
 import dev.modelmirage.client.visual.Visuals;
 import dev.modelmirage.client.visual.VisualHud;
 import dev.modelmirage.client.visual.VisualPreferences;
@@ -50,7 +52,9 @@ public class ModelMirageClient implements ClientModInitializer {
 			RuntimeModels.close();
 			MascotAnimations.close();
 			dev.modelmirage.client.gui.Backdrop.close();
+			SystemStats.close();
 		});
+		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> SystemStats.resetServer());
 
 		var category = KeyMapping.Category.register(Identifier.fromNamespaceAndPath("modelmirage", "controls"));
 		openKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(

@@ -8,7 +8,9 @@
     "ItemStackRenderStateAccessor",
     "KeyboardVisualMixin",
     "PlayerCosmeticMixin",
-    "GuiRendererMixin"
+    "GuiRendererMixin",
+    "GpuUtilizationMixin",
+    "ServerTimeMixin"
   ],
   "injectors": {
     "defaultRequire": 1

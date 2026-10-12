@@ -131,4 +131,22 @@ class LangFilesTest {
 			assertTrue(sourceKeys.contains(key) || moduleKeys.contains(key), "unused translation " + key);
 		}
 	}
+
+	/** The menu draws text with its own MSDF font; a character it lacks shows as a broken glyph. */
+	@ParameterizedTest
+	@ValueSource(strings = {"en_us", "ru_ru"})
+	void everyCharacterExistsInTheUiFont(String code) throws IOException {
+		java.util.Set<Integer> glyphs = new java.util.HashSet<>();
+		for (JsonElement glyph : resource("/assets/modelmirage/ui/fonts/semibold.json").getAsJsonObject().getAsJsonArray("glyphs")) {
+			if (glyph.getAsJsonObject().has("unicode")) glyphs.add(glyph.getAsJsonObject().get("unicode").getAsInt());
+		}
+		lang(code).forEach((key, value) -> value.codePoints().filter(c -> c != ' ' && !glyphs.contains(c))
+				.forEach(c -> org.junit.jupiter.api.Assertions.fail(key + " uses " + Character.toString(c) + " which the UI font lacks")));
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {"en_us", "ru_ru"})
+	void percentSignsAreEscaped(String code) throws IOException {
+		lang(code).forEach((key, value) -> assertFalse(value.replace("%%", "").matches(".*%(?![sd]|\\d+\\$).*"), key + " has a lone % that String.format rejects"));
+	}
 }

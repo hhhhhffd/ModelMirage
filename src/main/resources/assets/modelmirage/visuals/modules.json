@@ -51,39 +51,133 @@
         "value": true
       },
       {
+        "id": "density",
+        "type": "choice",
+        "value": "default",
+        "options": [
+          {
+            "id": "compact"
+          },
+          {
+            "id": "default"
+          },
+          {
+            "id": "spacious"
+          }
+        ]
+      },
+      {
         "id": "showLogo",
         "type": "boolean",
-        "value": true
+        "value": true,
+        "group": "items"
       },
       {
         "id": "showFps",
         "type": "boolean",
-        "value": true
+        "value": true,
+        "group": "items"
       },
       {
         "id": "showPing",
         "type": "boolean",
-        "value": true
+        "value": true,
+        "group": "items"
       },
       {
         "id": "showName",
         "type": "boolean",
-        "value": true
+        "value": true,
+        "group": "items"
       },
       {
         "id": "showTime",
         "type": "boolean",
-        "value": false
+        "value": false,
+        "group": "items"
       },
       {
         "id": "showHead",
         "type": "boolean",
-        "value": true
+        "value": true,
+        "group": "items"
+      },
+      {
+        "id": "showSignal",
+        "type": "boolean",
+        "value": true,
+        "group": "items"
+      },
+      {
+        "id": "showLowFps",
+        "type": "boolean",
+        "value": false,
+        "group": "items"
+      },
+      {
+        "id": "showCpu",
+        "type": "boolean",
+        "value": false,
+        "group": "items"
+      },
+      {
+        "id": "showCpuClock",
+        "type": "boolean",
+        "value": false,
+        "group": "items"
+      },
+      {
+        "id": "showGpu",
+        "type": "boolean",
+        "value": false,
+        "group": "items"
+      },
+      {
+        "id": "showTps",
+        "type": "boolean",
+        "value": false,
+        "group": "items"
+      },
+      {
+        "id": "showServer",
+        "type": "boolean",
+        "value": false,
+        "group": "items"
+      },
+      {
+        "id": "showMemory",
+        "type": "boolean",
+        "value": false,
+        "group": "items"
+      },
+      {
+        "id": "showSpeed",
+        "type": "boolean",
+        "value": false,
+        "group": "items"
+      },
+      {
+        "id": "showKd",
+        "type": "boolean",
+        "value": false,
+        "group": "items"
+      },
+      {
+        "id": "showJitter",
+        "type": "boolean",
+        "value": false,
+        "group": "items"
+      },
+      {
+        "id": "showConnection",
+        "type": "boolean",
+        "value": false,
+        "group": "items"
       },
       {
         "id": "order",
         "type": "order",
-        "value": "title,ping,fps,name,time,head"
+        "value": "title,signal,ping,fps,low,name,time,head,cpu,clock,gpu,tps,server,memory,speed,kd,jitter,link"
       }
     ]
   },

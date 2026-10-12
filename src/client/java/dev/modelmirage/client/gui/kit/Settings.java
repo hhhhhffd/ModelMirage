@@ -4,6 +4,8 @@ import com.google.gson.JsonPrimitive;
 import dev.modelmirage.client.Lang;
 import dev.modelmirage.client.visual.VisualModule;
 import dev.modelmirage.client.visual.Visuals;
+import java.util.ArrayList;
+import java.util.List;
 
 /** Builds rows and cards from visual module definitions, so menus and HUD popovers stay identical. */
 public final class Settings {
@@ -29,8 +31,20 @@ public final class Settings {
 	/** Card with the module switch in its header, one row per setting and a key binding row. */
 	public static Group module(VisualModule module, Runnable changed) {
 		Group group = new Group().title(module.name()).toggle(() -> module.enabled, value -> { module.enabled = value; changed.run(); });
-		// Orders are edited by dragging the elements on the HUD itself.
-		for (VisualModule.Setting setting : module.settings.values()) if (!setting.type.equals("order")) group.add(row(setting, changed));
+		// Orders are edited by dragging the elements on the HUD itself; grouped switches become one checklist.
+		boolean listed = false;
+		for (VisualModule.Setting setting : module.settings.values()) {
+			if (setting.type.equals("order")) continue;
+			if (setting.group == null) { group.add(row(setting, changed)); continue; }
+			if (listed) continue;
+			listed = true;
+			List<ChecklistRow.Entry> entries = new ArrayList<>();
+			for (VisualModule.Setting member : module.settings.values()) {
+				if (!setting.group.equals(member.group)) continue;
+				entries.add(new ChecklistRow.Entry(member.name(), () -> member.value.getAsBoolean(), value -> { member.set(new JsonPrimitive(value)); changed.run(); }));
+			}
+			group.add(new ChecklistRow(Lang.tr("modelmirage.row.items"), entries));
+		}
 		group.add(new KeyRow(Lang.tr("modelmirage.row.key"), () -> module.bind, key -> { module.bind = key; changed.run(); }));
 		return group;
 	}

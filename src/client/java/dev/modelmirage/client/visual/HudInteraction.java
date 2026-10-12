@@ -345,8 +345,14 @@ public final class HudInteraction {
 		float size = 6.5f, lineHeight = 10;
 		String[] lines = legend.split(" \\| ");
 		float y = elements.y - 8 - lines.length * lineHeight;
+		float legendWidth = 0;
+		for (String text : lines) legendWidth = Math.max(legendWidth, MirageUi.MEDIUM.width(text, size));
+		// Glass behind the legend keeps it readable over a bright sky.
+		MirageUi.glass(graphics, elements.x + elements.width - legendWidth - 16, y - 6, legendWidth + 16, lines.length * lineHeight + 10, 8,
+				VisualPreferences.blur, Theme.POPUP_TINT);
+		y -= 0.5f;
 		for (String text : lines) {
-			MirageUi.MEDIUM.draw(graphics, text, elements.x + elements.width - MirageUi.MEDIUM.width(text, size), y, size, Theme.TEXT_SECONDARY);
+			MirageUi.MEDIUM.draw(graphics, text, elements.x + elements.width - 8 - MirageUi.MEDIUM.width(text, size), y, size, Theme.TEXT_SECONDARY);
 			y += lineHeight;
 		}
 		graphics.pose().popMatrix();

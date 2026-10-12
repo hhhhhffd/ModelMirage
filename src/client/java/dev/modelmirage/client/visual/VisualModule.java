@@ -55,6 +55,8 @@ public final class VisualModule {
 		public final String unit;
 		/** Boolean setting of the same module that has to be on for this row to show; null when always shown. */
 		public final String when;
+		/** Settings sharing a group are shown as one checklist row instead of one switch each. */
+		public final String group;
 		public final List<Option> options = new ArrayList<>();
 		private final List<String> orderItems;
 		public volatile JsonElement value;
@@ -68,6 +70,7 @@ public final class VisualModule {
 			step = data.has("step") ? data.get("step").getAsDouble() : 1;
 			unit = data.has("unit") ? data.get("unit").getAsString() : "";
 			when = data.has("when") ? data.get("when").getAsString() : null;
+			group = data.has("group") ? data.get("group").getAsString() : null;
 			orderItems = type.equals("order") ? List.of(data.get("value").getAsString().split(",")) : List.of();
 			if (data.has("options")) for (JsonElement option : data.getAsJsonArray("options")) {
 				JsonObject entry = option.getAsJsonObject();
