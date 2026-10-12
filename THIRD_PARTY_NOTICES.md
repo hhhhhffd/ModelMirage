@@ -34,6 +34,22 @@ from ModelMirage's MIT license and are not bundled in its JAR.
 
 Catalog: https://github.com/hhhhhffd/ModelMirage-catolog
 
+## LWJGL Assimp bindings and Assimp
+
+ModelMirage release JARs embed `org.lwjgl:lwjgl-assimp:3.4.1` and its
+natives for Linux x64, Windows x64 and macOS (x64, arm64) to import OBJ,
+FBX, glTF, Blender and other 3D formats.
+
+- LWJGL — BSD-3-Clause, https://www.lwjgl.org/license
+- Open Asset Import Library (Assimp) 6.0 — BSD-3-Clause,
+  https://github.com/assimp/assimp/blob/master/LICENSE
+- Draco (bundled with the Assimp natives) — Apache-2.0,
+  https://github.com/google/draco/blob/main/LICENSE
+
+The approach of shipping LWJGL Assimp inside a Fabric 26.2 mod follows
+"Lumina's Customs: 3D Models" (fbx-moffler, MIT,
+https://modrinth.com/mod/lc3dm). No code from that mod is included.
+
 ## Development tools
 
 The Fabric example mod template is published under CC0-1.0:

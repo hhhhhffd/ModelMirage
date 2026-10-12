@@ -18,6 +18,14 @@ dependencies {
 	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
 	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+	// Assimp decodes OBJ/FBX/glTF/... catalog models. Minecraft ships the LWJGL core of the same version.
+	implementation "org.lwjgl:lwjgl-assimp:${project.lwjgl_version}"
+	include "org.lwjgl:lwjgl-assimp:${project.lwjgl_version}"
+	["natives-linux", "natives-windows", "natives-macos", "natives-macos-arm64"].each { natives ->
+		runtimeOnly "org.lwjgl:lwjgl-assimp:${project.lwjgl_version}:${natives}"
+		include "org.lwjgl:lwjgl-assimp:${project.lwjgl_version}:${natives}"
+	}
 }
 
 processResources {

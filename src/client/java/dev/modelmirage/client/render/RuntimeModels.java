@@ -44,6 +44,7 @@ import net.minecraft.client.resources.model.cuboid.CuboidModel;
 import net.minecraft.client.resources.model.cuboid.ItemModelGenerator;
 import net.minecraft.client.resources.model.cuboid.ItemTransform;
 import net.minecraft.client.resources.model.geometry.BakedQuad;
+import net.minecraft.client.resources.model.geometry.UnbakedGeometry;
 import net.minecraft.client.resources.model.sprite.Material;
 import net.minecraft.client.resources.model.sprite.MaterialBaker;
 import net.minecraft.resources.Identifier;
@@ -56,6 +57,8 @@ import org.slf4j.LoggerFactory;
 public final class RuntimeModels {
 	private static final Map<Identifier, Loaded> MODELS = new ConcurrentHashMap<>();
 	private static final AtomicLong GENERATION = new AtomicLong();
+	static final int MAX_TEXTURE_SIZE = 2048;
+	static final long MAX_PIXELS = 16 * 1024 * 1024;
 
 	private RuntimeModels() { }
 
@@ -72,17 +75,10 @@ public final class RuntimeModels {
 		try {
 			long totalPixels = 0;
 			for (var entry : textures.entrySet()) {
-				byte[] png = entry.getValue();
-				if (png.length < 33 || ByteBuffer.wrap(png).getLong() != 0x89504E470D0A1A0AL
-						|| ByteBuffer.wrap(png, 12, 4).getInt() != 0x49484452) throw new IOException("Invalid PNG: " + entry.getKey());
-				int width = ByteBuffer.wrap(png, 16, 4).getInt();
-				int height = ByteBuffer.wrap(png, 20, 4).getInt();
-				totalPixels += (long) width * height;
-				if (width <= 0 || height <= 0 || width > 2048 || height > 2048 || totalPixels > 16 * 1024 * 1024) {
-					throw new IOException("Texture dimensions exceed limits: " + entry.getKey());
-				}
-				NativeImage image = NativeImage.read(new ByteArrayInputStream(png));
-				sprites.add(new SpriteContents(entry.getKey(), new FrameSize(width, height), image));
+				SpriteContents sprite = pngSprite(entry.getKey(), entry.getValue());
+				sprites.add(sprite);
+				totalPixels += (long) sprite.width() * sprite.height();
+				if (totalPixels > MAX_PIXELS) throw new IOException("Texture dimensions exceed limits: " + entry.getKey());
 			}
 			sprites.add(MissingTextureAtlasSprite.create());
 			return new Prepared(id, resolved, sprites);
@@ -90,6 +86,26 @@ public final class RuntimeModels {
 			sprites.forEach(SpriteContents::close);
 			throw failure;
 		}
+	}
+
+	/** Validates the PNG header before decoding so oversized images are rejected without allocating them. */
+	static SpriteContents pngSprite(Identifier id, byte[] png) throws IOException {
+		if (png.length < 33 || ByteBuffer.wrap(png).getLong() != 0x89504E470D0A1A0AL
+				|| ByteBuffer.wrap(png, 12, 4).getInt() != 0x49484452) throw new IOException("Invalid PNG: " + id);
+		int width = ByteBuffer.wrap(png, 16, 4).getInt();
+		int height = ByteBuffer.wrap(png, 20, 4).getInt();
+		if (width <= 0 || height <= 0 || width > MAX_TEXTURE_SIZE || height > MAX_TEXTURE_SIZE) {
+			throw new IOException("Texture dimensions exceed limits: " + id);
+		}
+		return new SpriteContents(id, new FrameSize(width, height), NativeImage.read(new ByteArrayInputStream(png)));
+	}
+
+	/** Resolves a model definition (display, textures, vanilla parents) and replaces its geometry with decoded mesh data. */
+	static ResolvedModel resolveWithGeometry(Identifier id, String json, UnbakedGeometry geometry) throws IOException {
+		ResolvedModel definition = resolve(id, json.getBytes(StandardCharsets.UTF_8), Map.of(), new HashSet<>());
+		CuboidModel wrapped = (CuboidModel) definition.wrapped();
+		return new Resolved(definition.debugName(), new CuboidModel(geometry, wrapped.guiLight(), wrapped.ambientOcclusion(),
+				wrapped.transforms(), wrapped.textureSlots(), wrapped.parent()), definition.parent());
 	}
 
 	private static ResolvedModel resolve(Identifier id, byte[] json, Map<Identifier, byte[]> parents,

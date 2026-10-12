@@ -4,6 +4,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import dev.modelmirage.client.ItemModelOverrides;
 import dev.modelmirage.client.CosmeticSelections;
+import dev.modelmirage.client.render.AssimpModels;
 import dev.modelmirage.client.render.MascotAnimations;
 import java.util.Set;
 import java.util.Objects;
@@ -61,6 +62,9 @@ public final class CatalogService {
 		registerLoader("java-item", Set.of(CatalogModel.Kind.ITEM, CatalogModel.Kind.PLAYER),
 				(entry, definition, textures, parents) -> RuntimeModels.prepare(entry.modelId(), definition, textures, parents));
 		registerLoader("sprite-animation", Set.of(CatalogModel.Kind.MASCOT), MascotAnimations::prepare);
+		for (String format : AssimpModels.FORMATS.keySet()) {
+			registerLoader(format, Set.of(CatalogModel.Kind.ITEM, CatalogModel.Kind.PLAYER), AssimpModels::prepare);
+		}
 	}
 
 	private CatalogService() { }
