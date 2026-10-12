@@ -211,7 +211,6 @@
   "modelmirage.module.Watermark.showServer": "Server",
   "modelmirage.module.Watermark.showMemory": "Memory",
   "modelmirage.module.Watermark.showSpeed": "Speed",
-  "modelmirage.module.Watermark.showKd": "K/D ratio",
   "modelmirage.module.Watermark.showJitter": "Ping jitter",
   "modelmirage.module.Watermark.showConnection": "Connection issues",
   "modelmirage.module.Watermark.density": "Density",
@@ -220,5 +219,8 @@
   "modelmirage.module.Watermark.density.spacious": "Spacious",
   "modelmirage.row.checklist": "%s of %s",
   "modelmirage.hud.no_link": "No link %ss",
-  "modelmirage.row.items": "Items"
+  "modelmirage.row.items": "Items",
+  "modelmirage.module.Watermark.showKdPlayers": "K/D players",
+  "modelmirage.module.Watermark.showTotems": "Totems popped/lost",
+  "modelmirage.module.Watermark.showKdMobs": "K/D mobs"
 }

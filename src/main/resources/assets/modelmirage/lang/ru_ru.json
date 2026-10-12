@@ -211,7 +211,6 @@
   "modelmirage.module.Watermark.showServer": "Сервер",
   "modelmirage.module.Watermark.showMemory": "Память",
   "modelmirage.module.Watermark.showSpeed": "Скорость",
-  "modelmirage.module.Watermark.showKd": "K/D",
   "modelmirage.module.Watermark.showJitter": "Разброс пинга",
   "modelmirage.module.Watermark.showConnection": "Проблемы со связью",
   "modelmirage.module.Watermark.density": "Плотность",
@@ -220,5 +219,8 @@
   "modelmirage.module.Watermark.density.spacious": "Свободно",
   "modelmirage.row.checklist": "%s из %s",
   "modelmirage.hud.no_link": "Нет связи %sс",
-  "modelmirage.row.items": "Элементы"
+  "modelmirage.row.items": "Элементы",
+  "modelmirage.module.Watermark.showKdPlayers": "K/D игроки",
+  "modelmirage.module.Watermark.showTotems": "Тотемы снёс/потерял",
+  "modelmirage.module.Watermark.showKdMobs": "K/D мобы"
 }

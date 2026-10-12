@@ -6,8 +6,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import net.minecraft.client.Minecraft;
-import net.minecraft.network.protocol.game.ServerboundClientCommandPacket;
-import net.minecraft.stats.Stats;
 import org.slf4j.LoggerFactory;
 import oshi.SystemInfo;
 import oshi.hardware.CentralProcessor;
@@ -28,8 +26,6 @@ public final class SystemStats {
 	private static volatile boolean gpuWanted;
 	private static long serverGameTime = -1, serverNanos, lastTimeUpdate;
 	private static volatile float jitterMs = -1;
-	private static long lastStatsRequest;
-	private static final long STATS_INTERVAL = 30_000_000_000L;
 	private static long lastSample;
 	private static double shownGpu = -1;
 	private static volatile float serverTps = -1;
@@ -112,7 +108,6 @@ public final class SystemStats {
 		serverTps = -1;
 		jitterMs = -1;
 		lastTimeUpdate = 0;
-		lastStatsRequest = 0;
 	}
 
 	/** Average drift of the server's time updates in milliseconds, or -1 before two have arrived. */
@@ -124,23 +119,6 @@ public final class SystemStats {
 		if (lastTimeUpdate == 0 || client.isPaused()) return 0;
 		float seconds = (System.nanoTime() - lastTimeUpdate) / 1e9f;
 		return seconds > 2.5f ? seconds : 0;
-	}
-
-	/**
-	 * Kills per death from the player's statistics. The server only sends them on request (the vanilla
-	 * statistics screen asks the same way), so they are refreshed every 30 seconds while shown.
-	 */
-	static String killDeathRatio() {
-		Minecraft client = Minecraft.getInstance();
-		if (client.player == null || client.getConnection() == null) return "-";
-		long now = System.nanoTime();
-		if (lastStatsRequest == 0 || now - lastStatsRequest > STATS_INTERVAL) {
-			lastStatsRequest = now;
-			client.getConnection().send(new ServerboundClientCommandPacket(ServerboundClientCommandPacket.Action.REQUEST_STATS));
-		}
-		int kills = client.player.getStats().getValue(Stats.CUSTOM.get(Stats.PLAYER_KILLS));
-		int deaths = client.player.getStats().getValue(Stats.CUSTOM.get(Stats.DEATHS));
-		return String.format(java.util.Locale.ROOT, "%.2f", kills / (double) Math.max(1, deaths));
 	}
 
 	/** "localhost" for singleplayer and an open LAN world, else the address typed in the server list. */

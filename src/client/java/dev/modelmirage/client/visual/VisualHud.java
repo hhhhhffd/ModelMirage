@@ -317,7 +317,10 @@ public final class VisualHud {
 		if (module.bool("showMemory")) available.put("memory", new Chip("memory", null, "", 0,
 				String.format(Locale.ROOT, "%.1f/%.1f GB", SystemStats.usedMemory() / 1073741824.0, SystemStats.maxMemory() / 1073741824.0)));
 		if (module.bool("showSpeed")) available.put("speed", new Chip("speed", null, "", 0, String.format(Locale.ROOT, "%.2f BPS", speed)));
-		if (module.bool("showKd")) available.put("kd", new Chip("kd", null, "", 0, "K/D " + SystemStats.killDeathRatio()));
+		// Session counts, kills/deaths: players, totems we popped/ours that popped, mobs.
+		if (module.bool("showKdPlayers")) available.put("kdp", new Chip("kdp", null, "", 0, "PVP " + CombatStats.players()));
+		if (module.bool("showTotems")) available.put("totems", new Chip("totems", null, "", 0, "TOTEMS " + CombatStats.totems()));
+		if (module.bool("showKdMobs")) available.put("kdm", new Chip("kdm", null, "", 0, "PVE " + CombatStats.mobs()));
 		if (module.bool("showJitter")) {
 			float jitter = SystemStats.jitter();
 			available.put("jitter", new Chip("jitter", null, "", 0, jitter < 0 ? "VAR - MS" : "VAR " + Math.round(jitter) + " MS"));

@@ -10,7 +10,9 @@
     "PlayerCosmeticMixin",
     "GuiRendererMixin",
     "GpuUtilizationMixin",
-    "ServerTimeMixin"
+    "ServerTimeMixin",
+    "CombatEventsMixin",
+    "AttackCreditMixin"
   ],
   "injectors": {
     "defaultRequire": 1
