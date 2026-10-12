@@ -1,6 +1,7 @@
 package dev.modelmirage.client.visual;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import dev.modelmirage.client.Lang;
 import dev.modelmirage.client.gui.MirageUi;
 import dev.modelmirage.client.gui.kit.ButtonRow;
 import dev.modelmirage.client.gui.kit.Settings;
@@ -155,7 +156,7 @@ public final class HudInteraction {
 	private void openPopover(VisualHud.Panel panel) {
 		closePopover();
 		var group = Settings.module(Visuals.module(panel.module()), this::settingsChanged);
-		group.add(new ButtonRow("Позиция", "Сбросить", () -> { remember(); HudLayout.reset(panel.id()); dirty = true; save(); }));
+		group.add(new ButtonRow(Lang.tr("modelmirage.hud.position"), Lang.tr("modelmirage.action.reset"), () -> { remember(); HudLayout.reset(panel.id()); dirty = true; save(); }));
 		popover = new HudPopover(group, panel);
 		surface = new Surface();
 	}
@@ -179,11 +180,11 @@ public final class HudInteraction {
 		settingsDeadline = 0;
 		if (dirty) {
 			try { HudLayout.save(); dirty = false; }
-			catch (IOException exception) { failure = "Не удалось сохранить HUD. Esc: повторить"; LoggerFactory.getLogger("ModelMirage").error("Could not save HUD layout", exception); }
+			catch (IOException exception) { failure = Lang.tr("modelmirage.hud.save_layout_failed"); LoggerFactory.getLogger("ModelMirage").error("Could not save HUD layout", exception); }
 		}
 		if (settingsDirty) {
 			try { Visuals.save(); settingsDirty = false; }
-			catch (IOException exception) { failure = "Не удалось сохранить настройки. Esc: повторить"; LoggerFactory.getLogger("ModelMirage").error("Could not save visual settings", exception); }
+			catch (IOException exception) { failure = Lang.tr("modelmirage.hud.save_settings_failed"); LoggerFactory.getLogger("ModelMirage").error("Could not save visual settings", exception); }
 		}
 		error = failure;
 		return failure.isEmpty();

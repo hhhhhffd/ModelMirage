@@ -1,6 +1,6 @@
 package dev.modelmirage.client.gui.kit;
 
-/** A row whose control is a compact button, e.g. "Редактор HUD → Открыть". */
+/** A row whose control is a compact button, e.g. "HUD editor → Open". */
 public final class ButtonRow extends Row {
 	private final Button button;
 

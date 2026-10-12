@@ -1,5 +1,6 @@
 package dev.modelmirage.client.visual;
 
+import dev.modelmirage.client.Lang;
 import dev.modelmirage.client.gui.MirageUi;
 import dev.modelmirage.client.gui.kit.Paint;
 import dev.modelmirage.client.gui.kit.Theme;
@@ -142,7 +143,7 @@ public final class VisualHud {
 		HudLayout.Position position = HudLayout.position(id, defaultX, defaultY, logicalWidth, logicalHeight);
 		int x = Math.clamp(Math.round(position.x() * logicalWidth), 0, Math.max(0, logicalWidth - Math.round(width * position.scale())));
 		int y = Math.clamp(Math.round(position.y() * logicalHeight), 0, Math.max(0, logicalHeight - Math.round(height * position.scale())));
-		Panel panel = new Panel(id, module.id, module.name, x, y, width, height, hudScale, position.scale());
+		Panel panel = new Panel(id, module.id, module.name(), x, y, width, height, hudScale, position.scale());
 		PANELS.add(panel);
 		return panel;
 	}
@@ -423,14 +424,14 @@ public final class VisualHud {
 	private static void moduleList(GuiGraphicsExtractor graphics, boolean editor, int width) {
 		VisualModule panelModule = Visuals.module("ArrayList");
 		List<VisualModule> modules = Visuals.modules().stream().filter(module -> !module.isPanel() && !module.category.equals("mascot") && !module.id.equals("Interface"))
-				.sorted(Comparator.comparingDouble((VisualModule module) -> MirageUi.SEMIBOLD.width(module.name, 7.5f)).reversed()).toList();
+				.sorted(Comparator.comparingDouble((VisualModule module) -> MirageUi.SEMIBOLD.width(module.name(), 7.5f)).reversed()).toList();
 		float w = 60;
 		float h = 0;
 		for (var module : modules) {
 			Motion row = motion("module:" + module.id);
 			row.alpha = editor ? (module.enabled ? 1 : 0) : MirageUi.animate(row.alpha, module.enabled ? 1 : 0, 14, seconds);
 			row.height = MirageUi.animate(row.height, row.alpha < 0.1f ? 0 : 22, 14, seconds);
-			if (row.alpha >= 0.005f) w = Math.max(w, MirageUi.SEMIBOLD.width(module.name, 7.5f) + 29);
+			if (row.alpha >= 0.005f) w = Math.max(w, MirageUi.SEMIBOLD.width(module.name(), 7.5f) + 29);
 			h += row.height;
 		}
 		boolean empty = editor && h < 1;
@@ -438,7 +439,7 @@ public final class VisualHud {
 		if (panel == null) return;
 		if (empty) {
 			background(graphics, panelModule, panel.x(), panel.y(), panel.width(), panel.height(), 7);
-			MirageUi.MEDIUM.draw(graphics, "Нет активных модулей", panel.x() + 10, Paint.centeredTextY(panel.y(), panel.height(), 7.5f), 7.5f, Theme.TEXT_TERTIARY);
+			MirageUi.MEDIUM.draw(graphics, Lang.tr("modelmirage.hud.no_modules"), panel.x() + 10, Paint.centeredTextY(panel.y(), panel.height(), 7.5f), 7.5f, Theme.TEXT_TERTIARY);
 		}
 		float alpha = MirageUi.alpha;
 		float y = panel.y();
@@ -446,11 +447,11 @@ public final class VisualHud {
 			Motion row = motion("module:" + module.id);
 			if (row.alpha >= 0.005f) {
 				MirageUi.alpha = alpha * row.alpha;
-				float rowWidth = MirageUi.SEMIBOLD.width(module.name, 7.5f) + 29;
+				float rowWidth = MirageUi.SEMIBOLD.width(module.name(), 7.5f) + 29;
 				float x = panel.x() + panel.width() - rowWidth + (1 - row.alpha) * 10;
 				background(graphics, panelModule, x, y, rowWidth, 18, 7);
 				icon(graphics, MirageUi.LOGO, "A", x + 6, y + 4, 10);
-				MirageUi.SEMIBOLD.draw(graphics, module.name, x + 21, Paint.centeredTextY(y, 18, 7.5f), 7.5f, Theme.TEXT);
+				MirageUi.SEMIBOLD.draw(graphics, module.name(), x + 21, Paint.centeredTextY(y, 18, 7.5f), 7.5f, Theme.TEXT);
 			}
 			y += row.height;
 		}
@@ -466,23 +467,23 @@ public final class VisualHud {
 			boolean visible = module.bind >= 0;
 			row.alpha = editor ? (visible ? 1 : 0) : MirageUi.animate(row.alpha, visible ? 1 : 0, 14, seconds);
 			row.height = editor ? (visible ? 16 : 0) : MirageUi.animate(row.height, visible ? 16 : 0, 14, seconds);
-			if (row.alpha >= 0.005f) w = Math.max(w, MirageUi.MEDIUM.width(module.name, 7.5f) + 56);
+			if (row.alpha >= 0.005f) w = Math.max(w, MirageUi.MEDIUM.width(module.name(), 7.5f) + 56);
 			h += row.height;
 		}
-		if (editor && h < 1) w = Math.max(w, MirageUi.MEDIUM.width("Назначь клавишу в настройках", 7.5f) + 20);
+		if (editor && h < 1) w = Math.max(w, MirageUi.MEDIUM.width(Lang.tr("modelmirage.hud.bind_hint"), 7.5f) + 20);
 		Panel panel = begin(graphics, "binds", "Keybinds", width * 0.30f, height / 3f, w, 38 + Math.max(editor ? 16 : 0, h), on("Keybinds", editor) && (editor || h > 0.1f), true, editor);
 		if (panel == null) return;
 		icon(graphics, MirageUi.INTERFACE, "K", panel.x() + 10, panel.y() + 8, 8);
-		MirageUi.SEMIBOLD.draw(graphics, "Клавиши", panel.x() + 23, Paint.centeredTextY(panel.y(), 24, 8.5f), 8.5f, Theme.TEXT);
+		MirageUi.SEMIBOLD.draw(graphics, Lang.tr("modelmirage.module.Keybinds"), panel.x() + 23, Paint.centeredTextY(panel.y(), 24, 8.5f), 8.5f, Theme.TEXT);
 		Paint.separator(graphics, panel.x() + 10, panel.y() + 24, panel.width() - 20);
 		float alpha = MirageUi.alpha;
 		float y = panel.y() + 30;
-		if (editor && h < 1) MirageUi.MEDIUM.draw(graphics, "Назначь клавишу в настройках", panel.x() + 10, y, 7.5f, Theme.TEXT_TERTIARY);
+		if (editor && h < 1) MirageUi.MEDIUM.draw(graphics, Lang.tr("modelmirage.hud.bind_hint"), panel.x() + 10, y, 7.5f, Theme.TEXT_TERTIARY);
 		for (var module : modules) {
 			Motion row = motion("bind:" + module.id);
 			if (module.bind >= 0 && row.alpha >= 0.005f) {
 				MirageUi.alpha = alpha * row.alpha;
-				MirageUi.MEDIUM.draw(graphics, module.name, panel.x() + 10, y + (1 - row.alpha) * -3, 7.5f, Theme.TEXT);
+				MirageUi.MEDIUM.draw(graphics, module.name(), panel.x() + 10, y + (1 - row.alpha) * -3, 7.5f, Theme.TEXT);
 				String key = MirageUi.MEDIUM.fit(dev.modelmirage.client.gui.kit.KeyRow.keyName(module.bind), 7.5f, 40);
 				MirageUi.MEDIUM.draw(graphics, key, panel.x() + panel.width() - MirageUi.MEDIUM.width(key, 7.5f) - 10, y + (1 - row.alpha) * -3, 7.5f, MirageUi.ACCENT);
 			}

@@ -1,5 +1,6 @@
 package dev.modelmirage.client.visual;
 
+import dev.modelmirage.client.Lang;
 import dev.modelmirage.client.gui.MirageUi;
 import dev.modelmirage.client.gui.kit.Theme;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -11,10 +12,10 @@ import net.minecraft.network.chat.Component;
 public final class HudEditorScreen extends Screen {
 	private float hint = 1;
 	private long frame = System.nanoTime();
-	private static final String HINT = "ЛКМ: двигать   |   Колесо: масштаб   |   ПКМ: настройки   |   Ctrl+Z: отмена   |   Esc: готово";
+	private final String legend = Lang.tr("modelmirage.hud.editor.legend");
 	private final Screen parent;
 	private final HudInteraction interaction = new HudInteraction();
-	public HudEditorScreen(Screen parent) { super(Component.literal("Редактор HUD")); this.parent = parent; }
+	public HudEditorScreen(Screen parent) { super(Component.translatable("modelmirage.hud.editor")); this.parent = parent; }
 
 	@Override
 	public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) { }
@@ -27,8 +28,8 @@ public final class HudEditorScreen extends Screen {
 		float viewWidth = width / scale;
 		graphics.pose().pushMatrix();
 		graphics.pose().scale(scale, scale);
-		float size = Math.min(7.5f, (viewWidth - 40) / MirageUi.MEDIUM.width(HINT, 1));
-		float textWidth = MirageUi.MEDIUM.width(HINT, size);
+		float size = Math.min(7.5f, (viewWidth - 40) / MirageUi.MEDIUM.width(legend, 1));
+		float textWidth = MirageUi.MEDIUM.width(legend, size);
 		float pillX = (viewWidth - textWidth) / 2 - 12;
 		float pillY = height / scale - 36;
 		// The hint sits where bottom panels live: it steps aside when the cursor comes close.
@@ -39,7 +40,7 @@ public final class HudEditorScreen extends Screen {
 		MirageUi.alpha = hint;
 		MirageUi.glass(graphics, pillX, pillY, textWidth + 24, 22, 11, 12, 0x90101014);
 		MirageUi.shape(graphics, pillX, pillY, textWidth + 24, 22, 11, 0.8f, 0x2AFFFFFF, 0x0CFFFFFF);
-		MirageUi.MEDIUM.draw(graphics, HINT, pillX + 12, pillY + (22 - size) / 2 - 0.3f, size, Theme.TEXT_SECONDARY);
+		MirageUi.MEDIUM.draw(graphics, legend, pillX + 12, pillY + (22 - size) / 2 - 0.3f, size, Theme.TEXT_SECONDARY);
 		MirageUi.alpha = previous;
 		graphics.pose().popMatrix();
 		interaction.draw(graphics, mouseX, mouseY, true);

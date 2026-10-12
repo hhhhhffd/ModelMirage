@@ -3,6 +3,7 @@ package dev.modelmirage.client.visual;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
+import dev.modelmirage.client.Lang;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -12,21 +13,22 @@ import java.util.Map;
 public final class VisualModule {
 	public final String id;
 	public final String category;
-	public final String name;
 	public final Map<String, Setting> settings = new LinkedHashMap<>();
 	public volatile boolean enabled;
 	public int bind = -1;
 
 	VisualModule(JsonObject definition) {
 		id = definition.get("id").getAsString();
-		name = definition.get("name").getAsString();
 		category = definition.get("category").getAsString();
 		enabled = definition.has("enabled") && definition.get("enabled").getAsBoolean();
 		for (JsonElement value : definition.getAsJsonArray("settings")) {
-			Setting setting = new Setting(value.getAsJsonObject());
+			Setting setting = new Setting(id, value.getAsJsonObject());
 			if (settings.put(setting.id, setting) != null) throw new IllegalArgumentException("Duplicate HUD setting " + setting.id);
 		}
 	}
+
+	/** Names come from the lang files: modelmirage.module.<id>, .<id>.<setting> and .<id>.<setting>.<option>. */
+	public String name() { return Lang.tr("modelmirage.module." + id); }
 
 	public Setting setting(String id) {
 		Setting result = settings.get(id);
@@ -43,7 +45,7 @@ public final class VisualModule {
 
 	public static final class Setting {
 		public final String id;
-		public final String name;
+		public final String moduleId;
 		public final String type;
 		public final double min;
 		public final double max;
@@ -52,9 +54,9 @@ public final class VisualModule {
 		public final List<Option> options = new ArrayList<>();
 		public volatile JsonElement value;
 
-		Setting(JsonObject data) {
+		Setting(String moduleId, JsonObject data) {
+			this.moduleId = moduleId;
 			id = data.get("id").getAsString();
-			name = data.get("name").getAsString();
 			type = data.get("type").getAsString();
 			min = data.has("min") ? data.get("min").getAsDouble() : 0;
 			max = data.has("max") ? data.get("max").getAsDouble() : 1;
@@ -62,7 +64,7 @@ public final class VisualModule {
 			unit = data.has("unit") ? data.get("unit").getAsString() : "";
 			if (data.has("options")) for (JsonElement option : data.getAsJsonArray("options")) {
 				JsonObject entry = option.getAsJsonObject();
-				options.add(new Option(entry.get("id").getAsString(), entry.get("name").getAsString()));
+				options.add(new Option(entry.get("id").getAsString(), "modelmirage.module." + moduleId + "." + id + "." + entry.get("id").getAsString()));
 			}
 			if (type.equals("choice") && options.isEmpty()) throw new IllegalArgumentException("Choice setting without options " + id);
 			if (!(min < max) || !(step > 0) || !Double.isFinite(min) || !Double.isFinite(max) || !Double.isFinite(step)) {
@@ -70,6 +72,8 @@ public final class VisualModule {
 			}
 			set(data.get("value"));
 		}
+
+		public String name() { return Lang.tr("modelmirage.module." + moduleId + "." + id); }
 
 		public void set(JsonElement input) {
 			value = switch (type) {
@@ -91,5 +95,7 @@ public final class VisualModule {
 		}
 	}
 
-	public record Option(String id, String name) { }
+	public record Option(String id, String key) {
+		public String name() { return Lang.tr(key); }
+	}
 }

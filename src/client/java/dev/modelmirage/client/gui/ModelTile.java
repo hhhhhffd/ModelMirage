@@ -1,5 +1,6 @@
 package dev.modelmirage.client.gui;
 
+import dev.modelmirage.client.Lang;
 import dev.modelmirage.client.catalog.CatalogModel;
 import dev.modelmirage.client.catalog.CatalogService;
 import dev.modelmirage.client.gui.kit.Control;
@@ -40,10 +41,20 @@ public final class ModelTile extends Control {
 
 	private String status() {
 		if (model == null) return "";
-		if (!CatalogService.supports(model)) return "Нужен загрузчик";
-		if (CatalogService.isLoading(model)) return "Загрузка...";
-		if (CatalogService.hasFailed(model)) return "Ошибка загрузки";
-		return model.group();
+		if (!CatalogService.supports(model)) return Lang.tr("modelmirage.tile.needs_loader");
+		if (CatalogService.isLoading(model)) return Lang.tr("modelmirage.state.loading");
+		if (CatalogService.hasFailed(model)) return Lang.tr("modelmirage.tile.load_failed");
+		return groupName(model);
+	}
+
+	/** Catalog models without a group fall back to a default one for their kind. */
+	public static String groupName(CatalogModel model) {
+		if (!model.group().isEmpty()) return model.group();
+		return switch (model.kind()) {
+			case ITEM -> Lang.tr("modelmirage.group.item");
+			case PLAYER -> Lang.tr("modelmirage.group.player");
+			case MASCOT -> Lang.tr("modelmirage.group.mascot");
+		};
 	}
 
 	public void activate() { onClick.run(); }

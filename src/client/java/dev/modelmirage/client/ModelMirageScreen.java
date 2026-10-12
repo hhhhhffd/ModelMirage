@@ -62,7 +62,7 @@ public final class ModelMirageScreen extends Screen {
 	private final List<Control> roots = new ArrayList<>();
 	private final ScrollView scroll = new ScrollView(new Columns());
 	private final Inspector inspector = new Inspector();
-	private final SearchField search = new SearchField("Поиск  Ctrl+F", value -> { scroll.reset(); rebuild(); });
+	private final SearchField search = new SearchField(Lang.tr("modelmirage.search.placeholder"), value -> { scroll.reset(); rebuild(); });
 	private Button close, editor, refresh;
 	private Crumb crumb;
 	private TileGrid grid;
@@ -88,7 +88,7 @@ public final class ModelMirageScreen extends Screen {
 		navigation.clear();
 		roots.clear();
 		close = new Button("", Button.Style.PLAIN, this::onClose);
-		editor = new Button("Редактор HUD", Button.Style.SECONDARY, this::openEditor);
+		editor = new Button(Lang.tr("modelmirage.hud.editor"), Button.Style.SECONDARY, this::openEditor);
 		editor.icon = "H";
 		editor.height = 22;
 		editor.textSize = Theme.CAPTION + 0.5f;
@@ -136,12 +136,12 @@ public final class ModelMirageScreen extends Screen {
 	}
 
 	private void refreshCatalog() {
-		if (CatalogService.loading()) { notify("Каталог уже обновляется", false); return; }
-		notify("Обновляю каталог...", false);
+		if (CatalogService.loading()) { notify(Lang.tr("modelmirage.toast.catalog_refreshing"), false); return; }
+		notify(Lang.tr("modelmirage.toast.catalog_refresh"), false);
 		CatalogService.refresh().whenComplete((unused, failure) -> minecraft.execute(() -> {
-			if (!CatalogService.error().isEmpty()) notify("Каталог недоступен", true);
-			else if (CatalogService.cached()) notify("Нет сети, каталог из кеша", true);
-			else notify("Каталог обновлён, моделей: " + (CatalogService.models().size() - 1), false);
+			if (!CatalogService.error().isEmpty()) notify(Lang.tr(CatalogService.error()), true);
+			else if (CatalogService.cached()) notify(Lang.tr("modelmirage.toast.catalog_cached"), true);
+			else notify(Lang.tr("modelmirage.toast.catalog_updated", CatalogService.models().size() - 1), false);
 		}));
 	}
 
@@ -167,20 +167,20 @@ public final class ModelMirageScreen extends Screen {
 					tile.applied = () -> ItemModelOverrides.isEnabled(itemId(item));
 					(switch (itemColumn(item)) { case 0 -> weapons; case 1 -> tools; default -> other; }).add(tile);
 				}
-				grid.sections.add(new TileGrid.Section("Оружие", weapons));
-				grid.sections.add(new TileGrid.Section("Инструменты", tools));
-				grid.sections.add(new TileGrid.Section("Предметы", other));
+				grid.sections.add(new TileGrid.Section(Lang.tr("modelmirage.items.weapons"), weapons));
+				grid.sections.add(new TileGrid.Section(Lang.tr("modelmirage.items.tools"), tools));
+				grid.sections.add(new TileGrid.Section(Lang.tr("modelmirage.items.other"), other));
 			} else {
 				List<ModelTile> tiles = new ArrayList<>();
 				for (CatalogModel entry : catalog) {
 					if (entry.kind() != page.kind || selectedItem != null && !entry.accepts(itemId(selectedItem))) continue;
-					if (!(entry.name() + " " + entry.id() + " " + entry.group()).toLowerCase(Locale.ROOT).contains(query)) continue;
+					if (!(entry.name() + " " + entry.id() + " " + ModelTile.groupName(entry)).toLowerCase(Locale.ROOT).contains(query)) continue;
 					ModelTile tile = new ModelTile(entry, () -> selectModel(entry));
 					tile.selected = () -> entry.equals(selectedModel);
 					tile.applied = () -> isApplied(entry);
 					tiles.add(tile);
 				}
-				grid.sections.add(new TileGrid.Section(selectedItem == null ? "" : "Модели для предмета", tiles));
+				grid.sections.add(new TileGrid.Section(selectedItem == null ? "" : Lang.tr("modelmirage.items.models_for_item"), tiles));
 			}
 			scroll.content = grid;
 			return;
@@ -190,16 +190,16 @@ public final class ModelMirageScreen extends Screen {
 			case HUD -> {
 				VisualModule hud = Visuals.module("Interface");
 				if (matches(hud, query)) {
-					Group general = new Group().caption("F", "Общие").title("Интерфейс");
+					Group general = new Group().caption("F", Lang.tr("modelmirage.caption.general")).title(Lang.tr("modelmirage.module.Interface"));
 					for (VisualModule.Setting setting : hud.settings.values()) general.add(Settings.row(setting, this::changed));
-					general.add(new ButtonRow("Расположение панелей", "Открыть", this::openEditor));
+					general.add(new ButtonRow(Lang.tr("modelmirage.hud.panel_layout"), Lang.tr("modelmirage.action.open"), this::openEditor));
 					columns.children.add(general);
 				}
 				boolean first = true;
 				for (VisualModule module : Visuals.modules()) {
 					if (!module.isPanel() || !matches(module, query)) continue;
 					Group group = Settings.module(module, this::changed);
-					if (first) group.caption("G", "Панели");
+					if (first) group.caption("G", Lang.tr("modelmirage.caption.panels"));
 					first = false;
 					columns.children.add(group);
 				}
@@ -208,7 +208,7 @@ public final class ModelMirageScreen extends Screen {
 				for (VisualModule module : Visuals.modules()) {
 					if (!module.category.equals("hud") || module.id.equals("Interface") || !matches(module, query)) continue;
 					// Every card is captioned so the two columns start on the same line.
-					columns.children.add(Settings.module(module, this::changed).caption("F", module.id.equals("Crosshair") ? "Прицел" : "Интерфейс игры"));
+					columns.children.add(Settings.module(module, this::changed).caption("F", module.id.equals("Crosshair") ? Lang.tr("modelmirage.module.Crosshair") : Lang.tr("modelmirage.caption.game_interface")));
 				}
 			}
 			case APPLIED -> buildApplied(columns, query);
@@ -220,31 +220,31 @@ public final class ModelMirageScreen extends Screen {
 
 	private static boolean matches(VisualModule module, String query) {
 		if (query.isEmpty()) return true;
-		StringBuilder text = new StringBuilder(module.id).append(' ').append(module.name);
-		for (VisualModule.Setting setting : module.settings.values()) text.append(' ').append(setting.name);
+		StringBuilder text = new StringBuilder(module.id).append(' ').append(module.name());
+		for (VisualModule.Setting setting : module.settings.values()) text.append(' ').append(setting.name());
 		return text.toString().toLowerCase(Locale.ROOT).contains(query);
 	}
 
 	private void buildApplied(Columns columns, String query) {
-		Group items = new Group().caption("E", "Предметы").title("Модели предметов");
+		Group items = new Group().caption("E", Lang.tr("modelmirage.page.items")).title(Lang.tr("modelmirage.applied.item_models"));
 		ItemModelOverrides.all().forEach((itemKey, model) -> {
 			Item item = BuiltInRegistries.ITEM.getValue(itemKey);
 			String name = item == Items.AIR ? itemKey.toString() : itemName(item);
 			if (!(name + " " + itemKey + " " + modelName(model)).toLowerCase(Locale.ROOT).contains(query)) return;
 			items.add(new AppliedRow(new ItemStack(item), name, modelName(model), () -> {
-				try { ItemModelOverrides.setModel(itemKey, null); notify("Сброшено: " + name, false); rebuild(); }
+				try { ItemModelOverrides.setModel(itemKey, null); notify(Lang.tr("modelmirage.toast.reset", name), false); rebuild(); }
 				catch (IOException failure) { saveFailed("Could not reset item override", failure); }
 			}));
 		});
-		if (items.rows.isEmpty()) items.add(new InfoRow(query.isEmpty() ? "Пока ничего не применено" : "Ничего не найдено", () -> ""));
+		if (items.rows.isEmpty()) items.add(new InfoRow(query.isEmpty() ? Lang.tr("modelmirage.applied.nothing") : Lang.tr("modelmirage.state.nothing_found"), () -> ""));
 		columns.children.add(items);
-		Group players = new Group().caption("L", "Персонажи").title("Игроки и HUD");
+		Group players = new Group().caption("L", Lang.tr("modelmirage.page.mascots")).title(Lang.tr("modelmirage.applied.players_hud"));
 		for (CosmeticSelections.Slot slot : CosmeticSelections.Slot.values()) {
 			Identifier selected = CosmeticSelections.selected(slot);
-			String label = switch (slot) { case SELF -> "Своя модель"; case OTHERS -> "Другие игроки"; case MASCOT -> "Персонаж HUD"; };
-			if (!CosmeticSelections.isSet(slot)) players.add(new InfoRow(label, () -> slot == CosmeticSelections.Slot.MASCOT ? "BoyKisser" : "Обычная"));
+			String label = switch (slot) { case SELF -> Lang.tr("modelmirage.page.self"); case OTHERS -> Lang.tr("modelmirage.page.others"); case MASCOT -> Lang.tr("modelmirage.module.Mascot"); };
+			if (!CosmeticSelections.isSet(slot)) players.add(new InfoRow(label, () -> slot == CosmeticSelections.Slot.MASCOT ? "BoyKisser" : Lang.tr("modelmirage.applied.default")));
 			else players.add(new AppliedRow(ItemStack.EMPTY, label, modelName(selected), () -> {
-				try { CosmeticSelections.set(slot, null); notify("Сброшено: " + label, false); rebuild(); }
+				try { CosmeticSelections.set(slot, null); notify(Lang.tr("modelmirage.toast.reset", label), false); rebuild(); }
 				catch (IOException failure) { saveFailed("Could not reset cosmetic", failure); }
 			}));
 		}
@@ -252,19 +252,19 @@ public final class ModelMirageScreen extends Screen {
 	}
 
 	private void buildSettings(Columns columns, String query) {
-		Group look = new Group().caption("J", "Оформление").title("Внешний вид");
-		look.add(new ColorRow("Акцентный цвет", () -> MirageUi.ACCENT, color -> { MirageUi.ACCENT = color; preferencesChanged(); }));
-		look.add(new SliderRow("Масштаб меню", 0.75, 1.5, 0.05, "x", () -> VisualPreferences.guiScale, value -> { VisualPreferences.guiScale = (float) value; preferencesChanged(); }));
-		look.add(new SliderRow("Размытие стекла", 0, 30, 1, "", () -> VisualPreferences.blur, value -> { VisualPreferences.blur = (float) value; preferencesChanged(); }));
-		look.add(new SliderRow("Затемнение фона", 0, 100, 5, "%", () -> VisualPreferences.opacity * 100, value -> { VisualPreferences.opacity = (float) value / 100; preferencesChanged(); }));
-		look.add(new ToggleRow("Анимации", () -> VisualPreferences.animations, value -> { VisualPreferences.animations = value; preferencesChanged(); }));
-		Group source = new Group().caption("E", "Каталог").title("Источник моделей");
-		source.add(new InfoRow("Статус", ModelMirageScreen::catalogStatus));
-		source.add(new InfoRow("Моделей", () -> String.valueOf(CatalogService.models().size())));
-		source.add(new ButtonRow("Каталог", "Обновить", this::refreshCatalog));
-		Group about = new Group().caption("D", "О моде").title("ModelMirage");
-		about.add(new InfoRow("Версия", () -> FabricLoader.getInstance().getModContainer("modelmirage").map(mod -> mod.getMetadata().getVersion().getFriendlyString()).orElse("?")));
-		about.add(new InfoRow("Открыть меню", () -> ModelMirageClient.openKey.getTranslatedKeyMessage().getString()));
+		Group look = new Group().caption("J", Lang.tr("modelmirage.settings.appearance")).title(Lang.tr("modelmirage.settings.look"));
+		look.add(new ColorRow(Lang.tr("modelmirage.settings.accent"), () -> MirageUi.ACCENT, color -> { MirageUi.ACCENT = color; preferencesChanged(); }));
+		look.add(new SliderRow(Lang.tr("modelmirage.settings.menu_scale"), 0.75, 1.5, 0.05, "x", () -> VisualPreferences.guiScale, value -> { VisualPreferences.guiScale = (float) value; preferencesChanged(); }));
+		look.add(new SliderRow(Lang.tr("modelmirage.settings.blur"), 0, 30, 1, "", () -> VisualPreferences.blur, value -> { VisualPreferences.blur = (float) value; preferencesChanged(); }));
+		look.add(new SliderRow(Lang.tr("modelmirage.settings.dim"), 0, 100, 5, "%", () -> VisualPreferences.opacity * 100, value -> { VisualPreferences.opacity = (float) value / 100; preferencesChanged(); }));
+		look.add(new ToggleRow(Lang.tr("modelmirage.settings.animations"), () -> VisualPreferences.animations, value -> { VisualPreferences.animations = value; preferencesChanged(); }));
+		Group source = new Group().caption("E", Lang.tr("modelmirage.settings.catalog")).title(Lang.tr("modelmirage.settings.catalog_source"));
+		source.add(new InfoRow(Lang.tr("modelmirage.settings.status"), ModelMirageScreen::catalogStatus));
+		source.add(new InfoRow(Lang.tr("modelmirage.settings.models"), () -> String.valueOf(CatalogService.models().size())));
+		source.add(new ButtonRow(Lang.tr("modelmirage.settings.catalog"), Lang.tr("modelmirage.action.refresh"), this::refreshCatalog));
+		Group about = new Group().caption("D", Lang.tr("modelmirage.settings.about")).title("ModelMirage");
+		about.add(new InfoRow(Lang.tr("modelmirage.settings.version"), () -> FabricLoader.getInstance().getModContainer("modelmirage").map(mod -> mod.getMetadata().getVersion().getFriendlyString()).orElse("?")));
+		about.add(new InfoRow(Lang.tr("modelmirage.settings.open_menu"), () -> ModelMirageClient.openKey.getTranslatedKeyMessage().getString()));
 		for (Group group : List.of(look, source, about)) {
 			boolean visible = query.isEmpty() || group.title.toLowerCase(Locale.ROOT).contains(query) || group.caption.toLowerCase(Locale.ROOT).contains(query)
 					|| group.rows.stream().anyMatch(row -> row instanceof Row line && line.label.toLowerCase(Locale.ROOT).contains(query));
@@ -280,18 +280,18 @@ public final class ModelMirageScreen extends Screen {
 	}
 
 	private void saveFailed(String log, IOException failure) {
-		notify("Не удалось сохранить", true);
+		notify(Lang.tr("modelmirage.toast.save_failed"), true);
 		LoggerFactory.getLogger("ModelMirage").error(log, failure);
 	}
 
 	private String modelName(Identifier model) {
-		return catalog.stream().filter(entry -> entry.modelId().equals(model)).map(CatalogModel::name).findFirst().orElse("Нет в каталоге");
+		return catalog.stream().filter(entry -> entry.modelId().equals(model)).map(CatalogModel::name).findFirst().orElse(Lang.tr("modelmirage.applied.not_in_catalog"));
 	}
 
 	private static String catalogStatus() {
-		if (CatalogService.loading()) return "Загрузка...";
-		if (CatalogService.cached()) return "Из кеша";
-		return CatalogService.error().isEmpty() ? "Подключён" : "Недоступен";
+		if (CatalogService.loading()) return Lang.tr("modelmirage.state.loading");
+		if (CatalogService.cached()) return Lang.tr("modelmirage.settings.status.cached");
+		return CatalogService.error().isEmpty() ? Lang.tr("modelmirage.settings.status.connected") : Lang.tr("modelmirage.settings.status.unavailable");
 	}
 
 	private static int itemColumn(Item item) {
@@ -340,13 +340,13 @@ public final class ModelMirageScreen extends Screen {
 		selectedModel = model;
 		failed = false;
 		previewYaw = previewPitch = 0;
-		if (!CatalogService.supports(model)) { downloading = false; notify("Для формата " + model.format() + " нужен загрузчик", true); return; }
+		if (!CatalogService.supports(model)) { downloading = false; notify(Lang.tr("modelmirage.toast.needs_loader", model.format()), true); return; }
 		downloading = !CatalogService.isLoaded(model);
 		CatalogService.load(model).whenComplete((unused, failure) -> minecraft.execute(() -> {
 			if (!model.equals(selectedModel)) return;
 			downloading = false;
 			failed = failure != null;
-			if (failed) notify("Не удалось загрузить модель", true);
+			if (failed) notify(Lang.tr("modelmirage.toast.load_failed"), true);
 		}));
 	}
 
@@ -358,7 +358,7 @@ public final class ModelMirageScreen extends Screen {
 			if (page.slot != null) CosmeticSelections.set(page.slot, selectedModel.modelId());
 			else if (selectedItem != null) ItemModelOverrides.setModel(itemId(selectedItem), selectedModel.modelId());
 			else return;
-			notify("Применено: " + selectedModel.name(), false);
+			notify(Lang.tr("modelmirage.toast.applied", selectedModel.name()), false);
 		} catch (IOException failure) { saveFailed("Could not apply loadout model", failure); }
 	}
 
@@ -367,7 +367,7 @@ public final class ModelMirageScreen extends Screen {
 			if (page.slot != null) CosmeticSelections.set(page.slot, null);
 			else if (selectedItem != null) ItemModelOverrides.setModel(itemId(selectedItem), null);
 			else return;
-			notify("Обычный вид восстановлен", false);
+			notify(Lang.tr("modelmirage.toast.restored"), false);
 			restoreSelectedModel();
 		} catch (IOException failure) { saveFailed("Could not reset loadout", failure); }
 	}
@@ -454,7 +454,7 @@ public final class ModelMirageScreen extends Screen {
 		int onAccent = MirageUi.luminance(Theme.accent()) > 0.6f ? 0xFF0B0B0E : 0xFFFFFFFF;
 		MirageUi.BOLD.draw(graphics, "M", 31 - MirageUi.BOLD.width("M", 13) / 2, 26.5f, 13, onAccent);
 		MirageUi.BOLD.draw(graphics, "ModelMirage", 52, 22, 11, Theme.TEXT);
-		MirageUi.MEDIUM.draw(graphics, "Модели и визуалы", 52, 35, Theme.CAPTION, Theme.TEXT_TERTIARY);
+		MirageUi.MEDIUM.draw(graphics, Lang.tr("modelmirage.sidebar.tagline"), 52, 35, Theme.CAPTION, Theme.TEXT_TERTIARY);
 		for (Nav nav : navigation) if (nav.page == page) navY = navY < 0 ? nav.y : MirageUi.animate(navY, nav.y, 20, surface.delta);
 		MirageUi.shape(graphics, 10, navY, SIDE - 20, 24, 7, 0, 0x1FFFFFFF, 0x17FFFFFF);
 		MirageUi.shape(graphics, 10, navY + 6, 2.5f, 12, 1.25f, 0, Theme.accent(), Theme.accent());
@@ -465,7 +465,7 @@ public final class ModelMirageScreen extends Screen {
 		MirageUi.SEMIBOLD.draw(graphics, MirageUi.SEMIBOLD.fit(minecraft.player.getName().getString(), Theme.BODY, 82), 47, cardY + 10, Theme.BODY, Theme.TEXT);
 		int dot = CatalogService.loading() ? Theme.accent() : CatalogService.cached() ? Theme.WARNING : CatalogService.error().isEmpty() ? Theme.SUCCESS : Theme.DANGER;
 		MirageUi.shape(graphics, 47, cardY + 25, 4, 4, 2, 0, dot, dot);
-		MirageUi.MEDIUM.draw(graphics, "Каталог: " + catalogStatus().toLowerCase(Locale.ROOT), 54, cardY + 23.5f, 6.5f, Theme.TEXT_TERTIARY);
+		MirageUi.MEDIUM.draw(graphics, Lang.tr("modelmirage.sidebar.catalog", catalogStatus().toLowerCase(Locale.ROOT)), 54, cardY + 23.5f, 6.5f, Theme.TEXT_TERTIARY);
 		refresh.layout(SIDE - 36, cardY + 9, 22);
 		refresh.render(surface);
 	}
@@ -518,12 +518,12 @@ public final class ModelMirageScreen extends Screen {
 
 	private void drawEmpty(GuiGraphicsExtractor graphics, float left, float top, float width) {
 		String title, hint;
-		if (CatalogService.loading()) { title = "Загрузка каталога..."; hint = "Модели появятся через мгновение"; }
-		else if (!CatalogService.error().isEmpty() && (page != Page.ITEMS || selectedItem != null)) { title = "Каталог недоступен"; hint = "Проверь соединение и нажми обновить внизу слева"; }
-		else if (!query().isEmpty()) { title = "Ничего не найдено"; hint = "Попробуй другой запрос"; }
-		else if (page == Page.ITEMS) { title = "Для этого предмета пока нет моделей"; hint = "Добавь модель в каталог, она появится здесь"; }
-		else if (page.kind == CatalogModel.Kind.PLAYER) { title = "Моделей игроков пока нет"; hint = "Добавь модель kind: player в каталог"; }
-		else { title = "Каталог пуст"; hint = "Проверь подключение и нажми обновить"; }
+		if (CatalogService.loading()) { title = Lang.tr("modelmirage.empty.loading"); hint = Lang.tr("modelmirage.empty.loading_hint"); }
+		else if (!CatalogService.error().isEmpty() && (page != Page.ITEMS || selectedItem != null)) { title = Lang.tr(CatalogService.error()); hint = Lang.tr("modelmirage.empty.unavailable_hint"); }
+		else if (!query().isEmpty()) { title = Lang.tr("modelmirage.state.nothing_found"); hint = Lang.tr("modelmirage.empty.nothing_found_hint"); }
+		else if (page == Page.ITEMS) { title = Lang.tr("modelmirage.empty.no_item_models"); hint = Lang.tr("modelmirage.empty.no_item_models_hint"); }
+		else if (page.kind == CatalogModel.Kind.PLAYER) { title = Lang.tr("modelmirage.empty.no_players"); hint = Lang.tr("modelmirage.empty.no_players_hint"); }
+		else { title = Lang.tr("modelmirage.empty.catalog_empty"); hint = Lang.tr("modelmirage.empty.catalog_empty_hint"); }
 		float cx = left + width / 2, cy = top + 110;
 		MirageUi.shape(graphics, cx - 20, cy - 46, 40, 40, 12, 0, Theme.CARD, Theme.CARD);
 		MirageUi.ICONS.draw(graphics, page.icon, cx - 8, cy - 34, 16, Theme.TEXT_TERTIARY);
@@ -579,7 +579,7 @@ public final class ModelMirageScreen extends Screen {
 		if (dirty) {
 			save();
 			// A broken config must not trap the player in the menu: the second Esc closes without saving.
-			if (dirty && !closeUnsaved) { closeUnsaved = true; notify("Не сохранено. Esc ещё раз — закрыть", true); return; }
+			if (dirty && !closeUnsaved) { closeUnsaved = true; notify(Lang.tr("modelmirage.toast.unsaved"), true); return; }
 		}
 		if (VisualPreferences.animations) closing = true;
 		else super.onClose();
@@ -649,28 +649,39 @@ public final class ModelMirageScreen extends Screen {
 	private static String itemName(Item item) { return Component.translatable(item.getDescriptionId()).getString(); }
 
 	private enum Section {
-		LOADOUT("Модели"), VISUALS("Визуалы"), SYSTEM("Система");
-		final String label;
-		Section(String label) { this.label = label; }
+		LOADOUT, VISUALS, SYSTEM;
+		String label() { return switch (this) { case LOADOUT -> Lang.tr("modelmirage.section.loadout"); case VISUALS -> Lang.tr("modelmirage.section.visuals"); case SYSTEM -> Lang.tr("modelmirage.section.system"); }; }
 	}
 
 	private enum Page {
-		ITEMS("Предметы", "E", Section.LOADOUT, CatalogModel.Kind.ITEM, null),
-		SELF("Своя модель", "L", Section.LOADOUT, CatalogModel.Kind.PLAYER, CosmeticSelections.Slot.SELF),
-		OTHERS("Другие игроки", "L", Section.LOADOUT, CatalogModel.Kind.PLAYER, CosmeticSelections.Slot.OTHERS),
-		MASCOTS("Персонажи", "K", Section.LOADOUT, CatalogModel.Kind.MASCOT, CosmeticSelections.Slot.MASCOT),
-		HUD("HUD", "G", Section.VISUALS, null, null),
-		SCREEN("Экран", "F", Section.VISUALS, null, null),
-		APPLIED("Применённые", "D", Section.SYSTEM, null, null),
-		SETTINGS("Настройки", "J", Section.SYSTEM, null, null);
-		final String label, icon;
+		ITEMS("E", Section.LOADOUT, CatalogModel.Kind.ITEM, null),
+		SELF("L", Section.LOADOUT, CatalogModel.Kind.PLAYER, CosmeticSelections.Slot.SELF),
+		OTHERS("L", Section.LOADOUT, CatalogModel.Kind.PLAYER, CosmeticSelections.Slot.OTHERS),
+		MASCOTS("K", Section.LOADOUT, CatalogModel.Kind.MASCOT, CosmeticSelections.Slot.MASCOT),
+		HUD("G", Section.VISUALS, null, null),
+		SCREEN("F", Section.VISUALS, null, null),
+		APPLIED("D", Section.SYSTEM, null, null),
+		SETTINGS("J", Section.SYSTEM, null, null);
+		final String icon;
 		final Section section;
 		final CatalogModel.Kind kind;
 		final CosmeticSelections.Slot slot;
-		Page(String label, String icon, Section section, CatalogModel.Kind kind, CosmeticSelections.Slot slot) {
-			this.label = label; this.icon = icon; this.section = section; this.kind = kind; this.slot = slot;
+		Page(String icon, Section section, CatalogModel.Kind kind, CosmeticSelections.Slot slot) {
+			this.icon = icon; this.section = section; this.kind = kind; this.slot = slot;
 		}
 		boolean loadout() { return kind != null; }
+		String label() {
+			return switch (this) {
+				case ITEMS -> Lang.tr("modelmirage.page.items");
+				case SELF -> Lang.tr("modelmirage.page.self");
+				case OTHERS -> Lang.tr("modelmirage.page.others");
+				case MASCOTS -> Lang.tr("modelmirage.page.mascots");
+				case HUD -> Lang.tr("modelmirage.page.hud");
+				case SCREEN -> Lang.tr("modelmirage.page.screen");
+				case APPLIED -> Lang.tr("modelmirage.page.applied");
+				case SETTINGS -> Lang.tr("modelmirage.page.settings");
+			};
+		}
 	}
 
 	/** Sidebar entry, or a section caption when {@code page} is null. */
@@ -691,7 +702,7 @@ public final class ModelMirageScreen extends Screen {
 		public void render(Surface surface) {
 			var graphics = surface.graphics;
 			if (page == null) {
-				MirageUi.SEMIBOLD.draw(graphics, section.label.toUpperCase(Locale.ROOT), x + 8, y + 7, 6.5f, Theme.TEXT_TERTIARY);
+				MirageUi.SEMIBOLD.draw(graphics, section.label().toUpperCase(Locale.ROOT), x + 8, y + 7, 6.5f, Theme.TEXT_TERTIARY);
 				return;
 			}
 			updateHover(surface);
@@ -699,7 +710,7 @@ public final class ModelMirageScreen extends Screen {
 			if (!current && hover > 0.01f) MirageUi.shape(graphics, x, y, width, height, 7, 0, MirageUi.opacity(Theme.HOVER, hover), MirageUi.opacity(Theme.HOVER, hover));
 			int color = current ? Theme.TEXT : MirageUi.mix(Theme.TEXT_SECONDARY, Theme.TEXT, hover * 0.6f);
 			MirageUi.ICONS.draw(graphics, page.icon, x + 12, y + 7, 10, current ? Theme.accent() : color);
-			MirageUi.SEMIBOLD.draw(graphics, page.label, x + 30, Paint.centeredTextY(y, height, Theme.BODY), Theme.BODY, color);
+			MirageUi.SEMIBOLD.draw(graphics, page.label(), x + 30, Paint.centeredTextY(y, height, Theme.BODY), Theme.BODY, color);
 			if (page == Page.APPLIED) {
 				int count = ItemModelOverrides.count();
 				for (CosmeticSelections.Slot slot : CosmeticSelections.Slot.values()) if (CosmeticSelections.isSet(slot)) count++;
@@ -715,7 +726,7 @@ public final class ModelMirageScreen extends Screen {
 		}
 	}
 
-	/** Page title; inside an item it becomes "Предметы › Item" with the first part clickable. */
+	/** Page title; inside an item it becomes "Items › Item" with the first part clickable. */
 	private final class Crumb extends Control {
 		private float backHover;
 
@@ -725,7 +736,7 @@ public final class ModelMirageScreen extends Screen {
 			height = 24;
 			float cy = y + 12;
 			if (page == Page.ITEMS && selectedItem != null) {
-				float backWidth = MirageUi.BOLD.width(page.label, Theme.TITLE) + 14;
+				float backWidth = MirageUi.BOLD.width(page.label(), Theme.TITLE) + 14;
 				boolean over = surface.mouseX >= x && surface.mouseX < x + backWidth && surface.mouseY >= y && surface.mouseY < y + height;
 				backHover = MirageUi.animate(backHover, over ? 1 : 0, 18, surface.delta);
 				graphics.pose().pushMatrix();
@@ -734,22 +745,22 @@ public final class ModelMirageScreen extends Screen {
 				graphics.pose().translate(-x - 4, -cy);
 				Paint.chevron(graphics, x + 4, cy, 0, MirageUi.mix(Theme.TEXT_SECONDARY, Theme.accent(), backHover));
 				graphics.pose().popMatrix();
-				MirageUi.BOLD.draw(graphics, page.label, x + 12, cy - Theme.TITLE / 2 - 0.5f, Theme.TITLE, MirageUi.mix(Theme.TEXT_SECONDARY, Theme.accent(), backHover));
+				MirageUi.BOLD.draw(graphics, page.label(), x + 12, cy - Theme.TITLE / 2 - 0.5f, Theme.TITLE, MirageUi.mix(Theme.TEXT_SECONDARY, Theme.accent(), backHover));
 				float after = x + backWidth + 4;
 				MirageUi.BOLD.draw(graphics, "/", after, cy - Theme.TITLE / 2 - 0.5f, Theme.TITLE, Theme.TEXT_TERTIARY);
 				String name = MirageUi.BOLD.fit(itemName(selectedItem), Theme.TITLE, 200);
 				MirageUi.BOLD.draw(graphics, name, after + 12, cy - Theme.TITLE / 2 - 0.5f, Theme.TITLE, Theme.TEXT);
 				width = after + 12 + MirageUi.BOLD.width(name, Theme.TITLE) - x;
 			} else {
-				MirageUi.BOLD.draw(graphics, page.label, x, cy - Theme.TITLE / 2 - 0.5f, Theme.TITLE, Theme.TEXT);
-				width = MirageUi.BOLD.width(page.label, Theme.TITLE);
+				MirageUi.BOLD.draw(graphics, page.label(), x, cy - Theme.TITLE / 2 - 0.5f, Theme.TITLE, Theme.TEXT);
+				width = MirageUi.BOLD.width(page.label(), Theme.TITLE);
 			}
 		}
 
 		@Override
 		public boolean mouseClicked(Surface surface, double mouseX, double mouseY, int button) {
 			if (button != 0 || page != Page.ITEMS || selectedItem == null || !contains(mouseX, mouseY)) return false;
-			if (mouseX < x + MirageUi.BOLD.width(page.label, Theme.TITLE) + 14) { back(); return true; }
+			if (mouseX < x + MirageUi.BOLD.width(page.label(), Theme.TITLE) + 14) { back(); return true; }
 			return false;
 		}
 	}
@@ -765,7 +776,7 @@ public final class ModelMirageScreen extends Screen {
 			this.icon = icon;
 			this.model = model;
 			height = 30;
-			reset = new Button("Сбросить", Button.Style.DANGER, onReset);
+			reset = new Button(Lang.tr("modelmirage.action.reset"), Button.Style.DANGER, onReset);
 			reset.height = 18;
 			reset.textSize = Theme.CAPTION;
 		}
@@ -797,12 +808,12 @@ public final class ModelMirageScreen extends Screen {
 
 	/** Right-hand card on loadout pages: live preview, selection details and actions. */
 	private final class Inspector extends Control {
-		private final Button apply = new Button("Применить", Button.Style.PRIMARY, ModelMirageScreen.this::applyOrRetry);
-		private final Button reset = new Button("Сброс", Button.Style.SECONDARY, ModelMirageScreen.this::resetSelection);
+		private final Button apply = new Button(Lang.tr("modelmirage.inspector.apply"), Button.Style.PRIMARY, ModelMirageScreen.this::applyOrRetry);
+		private final Button reset = new Button(Lang.tr("modelmirage.inspector.reset"), Button.Style.SECONDARY, ModelMirageScreen.this::resetSelection);
 		private final Group mascot = new Group()
-				.add(new ToggleRow("Показывать в HUD", () -> Visuals.enabled("Mascot"), value -> { Visuals.module("Mascot").enabled = value; changed(); }))
-				.add(new KeyRow("Клавиша", () -> Visuals.module("Mascot").bind, key -> { Visuals.module("Mascot").bind = key; changed(); }))
-				.add(new ButtonRow("Расположение", "Изменить", ModelMirageScreen.this::openEditor));
+				.add(new ToggleRow(Lang.tr("modelmirage.inspector.show_in_hud"), () -> Visuals.enabled("Mascot"), value -> { Visuals.module("Mascot").enabled = value; changed(); }))
+				.add(new KeyRow(Lang.tr("modelmirage.row.key"), () -> Visuals.module("Mascot").bind, key -> { Visuals.module("Mascot").bind = key; changed(); }))
+				.add(new ButtonRow(Lang.tr("modelmirage.inspector.layout"), Lang.tr("modelmirage.action.change"), ModelMirageScreen.this::openEditor));
 		private boolean rotating;
 		private float previewTop, previewHeight;
 
@@ -816,16 +827,18 @@ public final class ModelMirageScreen extends Screen {
 			var graphics = surface.graphics;
 			MirageUi.shape(graphics, x, y, width, height, Theme.RADIUS_CARD + 2, 0, Theme.CARD, Theme.CARD);
 			MirageUi.shape(graphics, x, y, width, height, Theme.RADIUS_CARD + 2, 0.8f, Theme.CARD_STROKE, 0x0AFFFFFF);
-			MirageUi.SEMIBOLD.draw(graphics, "ПРЕДПРОСМОТР", x + 12, y + 11, Theme.CAPTION, Theme.TEXT_TERTIARY);
-			if (page != Page.MASCOTS && (page.slot != null || selectedModel != null && CatalogService.isLoaded(selectedModel)))
-				MirageUi.MEDIUM.draw(graphics, "Тяни, чтобы вращать", x + width - 12 - MirageUi.MEDIUM.width("Тяни, чтобы вращать", 6.5f), y + 11.5f, 6.5f, Theme.TEXT_TERTIARY);
+			MirageUi.SEMIBOLD.draw(graphics, Lang.tr("modelmirage.inspector.preview").toUpperCase(Locale.ROOT), x + 12, y + 11, Theme.CAPTION, Theme.TEXT_TERTIARY);
+			if (page != Page.MASCOTS && (page.slot != null || selectedModel != null && CatalogService.isLoaded(selectedModel))) {
+				String rotate = Lang.tr("modelmirage.inspector.rotate");
+				MirageUi.MEDIUM.draw(graphics, rotate, x + width - 12 - MirageUi.MEDIUM.width(rotate, 6.5f), y + 11.5f, 6.5f, Theme.TEXT_TERTIARY);
+			}
 			previewTop = y + 26;
 			previewHeight = page == Page.MASCOTS ? 150 : 196;
 			float px = x + 8, pw = width - 16;
 			MirageUi.shape(graphics, px, previewTop, pw, previewHeight, 9, 0, 0x0FFFFFFF, 0x05FFFFFF);
 			drawPreview(graphics, px, previewTop, pw, previewHeight);
 			float textY = previewTop + previewHeight + 10;
-			String title = selectedModel != null ? selectedModel.name() : page == Page.ITEMS ? selectedItem == null ? "Выбери предмет" : itemName(selectedItem) : "Обычный вид";
+			String title = selectedModel != null ? selectedModel.name() : page == Page.ITEMS ? selectedItem == null ? Lang.tr("modelmirage.inspector.pick_item") : itemName(selectedItem) : Lang.tr("modelmirage.inspector.default_view");
 			MirageUi.BOLD.draw(graphics, MirageUi.BOLD.fit(title, 10.5f, width - 24), x + 12, textY, 10.5f, Theme.TEXT);
 			String subtitle = subtitle();
 			MirageUi.MEDIUM.draw(graphics, MirageUi.MEDIUM.fit(subtitle, Theme.CAPTION, width - 24), x + 12, textY + 15, Theme.CAPTION, failed ? Theme.DANGER : Theme.TEXT_SECONDARY);
@@ -835,7 +848,7 @@ public final class ModelMirageScreen extends Screen {
 				mascot.render(surface);
 			}
 			float half = (width - 30) / 2;
-			apply.text = failed ? "Повторить" : downloading ? "Загрузка..." : selectedModel != null && isApplied(selectedModel) ? "Применено" : "Применить";
+			apply.text = failed ? Lang.tr("modelmirage.inspector.retry") : downloading ? Lang.tr("modelmirage.state.loading") : selectedModel != null && isApplied(selectedModel) ? Lang.tr("modelmirage.inspector.applied") : Lang.tr("modelmirage.inspector.apply");
 			apply.height = reset.height = 26;
 			apply.layout(x + 12, buttonsY, half);
 			reset.layout(x + 18 + half, buttonsY, half);
@@ -845,14 +858,14 @@ public final class ModelMirageScreen extends Screen {
 
 		private String subtitle() {
 			if (selectedModel == null) {
-				if (page == Page.ITEMS && selectedItem == null) return "Слева сетка всех предметов";
+				if (page == Page.ITEMS && selectedItem == null) return Lang.tr("modelmirage.inspector.items_grid");
 				Identifier applied = appliedId();
-				return applied == null ? page == Page.ITEMS ? itemId(selectedItem).toString() : "Модель не выбрана" : "Сейчас: " + modelName(applied);
+				return applied == null ? page == Page.ITEMS ? itemId(selectedItem).toString() : Lang.tr("modelmirage.inspector.no_model") : Lang.tr("modelmirage.inspector.current", modelName(applied));
 			}
-			if (failed) return "Не удалось загрузить";
-			if (downloading) return "Загрузка модели...";
-			if (isApplied(selectedModel)) return "Применено, " + selectedModel.group();
-			return selectedModel.group() + ", " + selectedModel.format();
+			if (failed) return Lang.tr("modelmirage.inspector.load_failed");
+			if (downloading) return Lang.tr("modelmirage.inspector.loading");
+			if (isApplied(selectedModel)) return Lang.tr("modelmirage.inspector.applied_group", ModelTile.groupName(selectedModel));
+			return ModelTile.groupName(selectedModel) + ", " + selectedModel.format();
 		}
 
 		private void drawPreview(GuiGraphicsExtractor graphics, float px, float py, float pw, float ph) {
@@ -877,7 +890,7 @@ public final class ModelMirageScreen extends Screen {
 				graphics.pose().popMatrix();
 			} else {
 				MirageUi.ICONS.draw(graphics, "E", cx - 12, cy - 18, 24, Theme.TEXT_TERTIARY);
-				String hint = "Предмет не выбран";
+				String hint = Lang.tr("modelmirage.inspector.no_item");
 				MirageUi.MEDIUM.draw(graphics, hint, cx - MirageUi.MEDIUM.width(hint, Theme.BODY) / 2, cy + 12, Theme.BODY, Theme.TEXT_TERTIARY);
 			}
 			graphics.disableScissor();

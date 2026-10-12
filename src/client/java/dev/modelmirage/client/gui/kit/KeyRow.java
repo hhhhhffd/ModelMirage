@@ -1,6 +1,7 @@
 package dev.modelmirage.client.gui.kit;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import dev.modelmirage.client.Lang;
 import dev.modelmirage.client.gui.MirageUi;
 import java.util.Locale;
 import java.util.function.IntConsumer;
@@ -19,7 +20,7 @@ public final class KeyRow extends Row {
 	}
 
 	public static String keyName(int key) {
-		if (key < 0) return "Нет";
+		if (key < 0) return Lang.tr("modelmirage.key.none");
 		return InputConstants.Type.KEYSYM.getOrCreate(key).getDisplayName().getString().toUpperCase(Locale.ROOT);
 	}
 
@@ -29,7 +30,7 @@ public final class KeyRow extends Row {
 	@Override
 	protected void renderControl(Surface surface) {
 		boolean listening = surface.isFocused(this);
-		String text = listening ? "Нажми клавишу..." : MirageUi.MEDIUM.fit(keyName(value.getAsInt()), Theme.CAPTION, 60);
+		String text = listening ? Lang.tr("modelmirage.key.press") : MirageUi.MEDIUM.fit(keyName(value.getAsInt()), Theme.CAPTION, 60);
 		int fill = listening ? MirageUi.opacity(Theme.accent(), 0.3f) : MirageUi.mix(Theme.CONTROL, Theme.CONTROL_HOVER, hover);
 		Paint.chip(surface.graphics, text, right(), centerY(), fill, value.getAsInt() < 0 && !listening ? Theme.TEXT_SECONDARY : Theme.TEXT);
 	}
