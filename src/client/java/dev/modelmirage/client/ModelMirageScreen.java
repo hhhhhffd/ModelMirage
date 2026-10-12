@@ -62,7 +62,7 @@ public final class ModelMirageScreen extends Screen {
 	private final List<Control> roots = new ArrayList<>();
 	private final ScrollView scroll = new ScrollView(new Columns());
 	private final Inspector inspector = new Inspector();
-	private final SearchField search = new SearchField("Поиск", value -> { scroll.reset(); rebuild(); });
+	private final SearchField search = new SearchField("Поиск  Ctrl+F", value -> { scroll.reset(); rebuild(); });
 	private Button close, editor, refresh;
 	private Crumb crumb;
 	private TileGrid grid;
@@ -92,7 +92,7 @@ public final class ModelMirageScreen extends Screen {
 		editor.icon = "H";
 		editor.height = 22;
 		editor.textSize = Theme.CAPTION + 0.5f;
-		refresh = new Button("", Button.Style.PLAIN, () -> { CatalogService.refresh(); notify("Обновляю каталог...", false); });
+		refresh = new Button("", Button.Style.PLAIN, this::refreshCatalog);
 		refresh.icon = "D";
 		refresh.height = 22;
 		crumb = new Crumb();
@@ -133,6 +133,16 @@ public final class ModelMirageScreen extends Screen {
 	private void openEditor() {
 		save();
 		if (!dirty) minecraft.gui.setScreen(new HudEditorScreen(this));
+	}
+
+	private void refreshCatalog() {
+		if (CatalogService.loading()) { notify("Каталог уже обновляется", false); return; }
+		notify("Обновляю каталог...", false);
+		CatalogService.refresh().whenComplete((unused, failure) -> minecraft.execute(() -> {
+			if (!CatalogService.error().isEmpty()) notify("Каталог недоступен", true);
+			else if (CatalogService.cached()) notify("Нет сети, каталог из кеша", true);
+			else notify("Каталог обновлён, моделей: " + (CatalogService.models().size() - 1), false);
+		}));
 	}
 
 	private void notify(String message, boolean error) {
@@ -178,11 +188,13 @@ public final class ModelMirageScreen extends Screen {
 		Columns columns = new Columns();
 		switch (page) {
 			case HUD -> {
-				Group general = new Group().caption("F", "Общие").title("Интерфейс");
 				VisualModule hud = Visuals.module("Interface");
-				for (VisualModule.Setting setting : hud.settings.values()) general.add(Settings.row(setting, this::changed));
-				general.add(new ButtonRow("Расположение панелей", "Открыть", this::openEditor));
-				columns.children.add(general);
+				if (matches(hud, query)) {
+					Group general = new Group().caption("F", "Общие").title("Интерфейс");
+					for (VisualModule.Setting setting : hud.settings.values()) general.add(Settings.row(setting, this::changed));
+					general.add(new ButtonRow("Расположение панелей", "Открыть", this::openEditor));
+					columns.children.add(general);
+				}
 				boolean first = true;
 				for (VisualModule module : Visuals.modules()) {
 					if (!module.isPanel() || !matches(module, query)) continue;
@@ -244,15 +256,15 @@ public final class ModelMirageScreen extends Screen {
 		look.add(new ColorRow("Акцентный цвет", () -> AstolfoUi.ACCENT, color -> { AstolfoUi.ACCENT = color; preferencesChanged(); }));
 		look.add(new SliderRow("Масштаб меню", 0.75, 1.5, 0.05, "x", () -> VisualPreferences.guiScale, value -> { VisualPreferences.guiScale = (float) value; preferencesChanged(); }));
 		look.add(new SliderRow("Размытие стекла", 0, 30, 1, "", () -> VisualPreferences.blur, value -> { VisualPreferences.blur = (float) value; preferencesChanged(); }));
-		look.add(new SliderRow("Затемнение фона", 0, 1, 0.05, "", () -> VisualPreferences.opacity, value -> { VisualPreferences.opacity = (float) value; preferencesChanged(); }));
+		look.add(new SliderRow("Затемнение фона", 0, 100, 5, "%", () -> VisualPreferences.opacity * 100, value -> { VisualPreferences.opacity = (float) value / 100; preferencesChanged(); }));
 		look.add(new ToggleRow("Анимации", () -> VisualPreferences.animations, value -> { VisualPreferences.animations = value; preferencesChanged(); }));
 		Group source = new Group().caption("E", "Каталог").title("Источник моделей");
 		source.add(new InfoRow("Статус", ModelMirageScreen::catalogStatus));
 		source.add(new InfoRow("Моделей", () -> String.valueOf(CatalogService.models().size())));
-		source.add(new ButtonRow("Каталог", "Обновить", () -> { CatalogService.refresh(); notify("Обновляю каталог...", false); }));
+		source.add(new ButtonRow("Каталог", "Обновить", this::refreshCatalog));
 		Group about = new Group().caption("D", "О моде").title("ModelMirage");
 		about.add(new InfoRow("Версия", () -> FabricLoader.getInstance().getModContainer("modelmirage").map(mod -> mod.getMetadata().getVersion().getFriendlyString()).orElse("?")));
-		about.add(new InfoRow("Открыть меню", () -> "Right Shift"));
+		about.add(new InfoRow("Открыть меню", () -> ModelMirageClient.openKey.getTranslatedKeyMessage().getString()));
 		for (Group group : List.of(look, source, about)) {
 			boolean visible = query.isEmpty() || group.title.toLowerCase(Locale.ROOT).contains(query) || group.caption.toLowerCase(Locale.ROOT).contains(query)
 					|| group.rows.stream().anyMatch(row -> row instanceof Row line && line.label.toLowerCase(Locale.ROOT).contains(query));
@@ -442,7 +454,7 @@ public final class ModelMirageScreen extends Screen {
 		int onAccent = AstolfoUi.luminance(Theme.accent()) > 0.6f ? 0xFF0B0B0E : 0xFFFFFFFF;
 		AstolfoUi.BOLD.draw(graphics, "M", 31 - AstolfoUi.BOLD.width("M", 13) / 2, 26.5f, 13, onAccent);
 		AstolfoUi.BOLD.draw(graphics, "ModelMirage", 52, 22, 11, Theme.TEXT);
-		AstolfoUi.MEDIUM.draw(graphics, "Loadout & Visuals", 52, 35, Theme.CAPTION, Theme.TEXT_TERTIARY);
+		AstolfoUi.MEDIUM.draw(graphics, "Модели и визуалы", 52, 35, Theme.CAPTION, Theme.TEXT_TERTIARY);
 		for (Nav nav : navigation) if (nav.page == page) navY = navY < 0 ? nav.y : AstolfoUi.animate(navY, nav.y, 20, surface.delta);
 		AstolfoUi.shape(graphics, 10, navY, SIDE - 20, 24, 7, 0, 0x1FFFFFFF, 0x17FFFFFF);
 		AstolfoUi.shape(graphics, 10, navY + 6, 2.5f, 12, 1.25f, 0, Theme.accent(), Theme.accent());
@@ -508,6 +520,7 @@ public final class ModelMirageScreen extends Screen {
 	private void drawEmpty(GuiGraphicsExtractor graphics, float left, float top, float width) {
 		String title, hint;
 		if (CatalogService.loading()) { title = "Загрузка каталога..."; hint = "Модели появятся через мгновение"; }
+		else if (!CatalogService.error().isEmpty() && (page != Page.ITEMS || selectedItem != null)) { title = "Каталог недоступен"; hint = "Проверь соединение и нажми обновить внизу слева"; }
 		else if (!query().isEmpty()) { title = "Ничего не найдено"; hint = "Попробуй другой запрос"; }
 		else if (page == Page.ITEMS) { title = "Для этого предмета пока нет моделей"; hint = "Добавь модель в каталог, она появится здесь"; }
 		else if (page.kind == CatalogModel.Kind.PLAYER) { title = "Моделей игроков пока нет"; hint = "Добавь модель kind: player в каталог"; }
@@ -526,7 +539,9 @@ public final class ModelMirageScreen extends Screen {
 		if (age > 2.6f) { toast = ""; return; }
 		float previous = AstolfoUi.alpha;
 		AstolfoUi.alpha = previous * fade;
-		float w = AstolfoUi.SEMIBOLD.width(toast, Theme.BODY) + 34, x = SIDE + (W - SIDE - w) / 2, y = H - 40 + (1 - fade) * 8;
+		// On loadout pages the toast centres over the grid so it never covers the inspector buttons.
+		float right = page.loadout() ? W - PAD - INSPECTOR : W;
+		float w = AstolfoUi.SEMIBOLD.width(toast, Theme.BODY) + 34, x = SIDE + (right - SIDE - w) / 2, y = H - 40 + (1 - fade) * 8;
 		AstolfoUi.shadow(graphics, x, y, w, 24, 12);
 		AstolfoUi.glass(graphics, x, y, w, 24, 12, 14, Theme.POPUP_TINT);
 		AstolfoUi.shape(graphics, x, y, w, 24, 12, 0.8f, 0x26FFFFFF, 0x0AFFFFFF);
@@ -609,6 +624,11 @@ public final class ModelMirageScreen extends Screen {
 	@Override
 	public boolean keyPressed(KeyEvent event) {
 		if (closing) return true;
+		if (event.isConfirmation() && surface.isFocused(search) && grid != null && grid.tiles().size() == 1) {
+			surface.focus(null);
+			grid.tiles().getFirst().activate();
+			return true;
+		}
 		if (surface.keyPressed(event)) return true;
 		if (event.hasControlDown() && event.key() == InputConstants.KEY_F) { surface.focus(search); return true; }
 		if (event.isEscape() && page == Page.ITEMS && selectedItem != null) { back(); return true; }
@@ -630,7 +650,7 @@ public final class ModelMirageScreen extends Screen {
 	private static String itemName(Item item) { return Component.translatable(item.getDescriptionId()).getString(); }
 
 	private enum Section {
-		LOADOUT("Loadout"), VISUALS("Визуалы"), SYSTEM("Система");
+		LOADOUT("Модели"), VISUALS("Визуалы"), SYSTEM("Система");
 		final String label;
 		Section(String label) { this.label = label; }
 	}
@@ -798,7 +818,7 @@ public final class ModelMirageScreen extends Screen {
 			AstolfoUi.shape(graphics, x, y, width, height, Theme.RADIUS_CARD + 2, 0, Theme.CARD, Theme.CARD);
 			AstolfoUi.shape(graphics, x, y, width, height, Theme.RADIUS_CARD + 2, 0.8f, Theme.CARD_STROKE, 0x0AFFFFFF);
 			AstolfoUi.SEMIBOLD.draw(graphics, "ПРЕДПРОСМОТР", x + 12, y + 11, Theme.CAPTION, Theme.TEXT_TERTIARY);
-			if (selectedModel != null && CatalogService.isLoaded(selectedModel) && page != Page.MASCOTS)
+			if (page != Page.MASCOTS && (page.slot != null || selectedModel != null && CatalogService.isLoaded(selectedModel)))
 				AstolfoUi.MEDIUM.draw(graphics, "Тяни, чтобы вращать", x + width - 12 - AstolfoUi.MEDIUM.width("Тяни, чтобы вращать", 6.5f), y + 11.5f, 6.5f, Theme.TEXT_TERTIARY);
 			previewTop = y + 26;
 			previewHeight = page == Page.MASCOTS ? 150 : 196;

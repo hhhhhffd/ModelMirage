@@ -46,6 +46,8 @@ public final class ModelTile extends Control {
 		return model.group();
 	}
 
+	public void activate() { onClick.run(); }
+
 	@Override
 	public void render(Surface surface) {
 		var graphics = surface.graphics;

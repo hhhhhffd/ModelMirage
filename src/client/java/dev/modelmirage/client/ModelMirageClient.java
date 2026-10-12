@@ -21,6 +21,8 @@ import net.minecraft.resources.Identifier;
 
 public class ModelMirageClient implements ClientModInitializer {
 	public static final Identifier MODEL_ID = Identifier.fromNamespaceAndPath("modelmirage", "catalog/blood-axe-mace");
+	/** Shown in the menu so the hint follows a rebound key. */
+	public static KeyMapping openKey;
 	private boolean catalogStarted;
 
 	@Override
@@ -51,7 +53,7 @@ public class ModelMirageClient implements ClientModInitializer {
 		});
 
 		var category = KeyMapping.Category.register(Identifier.fromNamespaceAndPath("modelmirage", "controls"));
-		var openKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
+		openKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
 				"key.modelmirage.open",
 				InputConstants.Type.KEYSYM,
 				InputConstants.KEY_RSHIFT,
