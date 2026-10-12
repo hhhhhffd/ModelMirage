@@ -396,14 +396,13 @@ public final class ModelMirageScreen extends Screen {
 			} else restoreSelectedModel();
 			rebuild();
 		}
-		// Visible tiles load previews only from files already on disk; anything else downloads when the player opens it.
+		// Only visible tiles request previews; large catalogs never download in full.
 		if (grid != null) {
 			int started = 0;
 			for (ModelTile tile : grid.tiles()) {
 				if (started == 3) break;
 				if (tile.model != null && tile.y + tile.height > scroll.y && tile.y < scroll.y + scroll.height && CatalogService.supports(tile.model)
-						&& !CatalogService.isLoaded(tile.model) && !CatalogService.isLoading(tile.model) && !CatalogService.hasFailed(tile.model)
-						&& CatalogService.isCached(tile.model)) {
+						&& !CatalogService.isLoaded(tile.model) && !CatalogService.isLoading(tile.model) && !CatalogService.hasFailed(tile.model)) {
 					CatalogService.load(tile.model);
 					started++;
 				}

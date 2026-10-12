@@ -44,7 +44,7 @@ public final class ModelTile extends Control {
 		if (!CatalogService.supports(model)) return Lang.tr("modelmirage.tile.needs_loader");
 		if (CatalogService.isLoading(model)) return Lang.tr("modelmirage.state.loading");
 		if (CatalogService.hasFailed(model)) return Lang.tr("modelmirage.tile.load_failed");
-		// Not downloaded yet: tell the size up front, nothing is fetched until the tile is opened.
+		// Not downloaded yet: tell the size while its preview is on the way.
 		if (!model.builtin() && !CatalogService.isLoaded(model) && !CatalogService.isCached(model)) return groupName(model) + ", " + size(model.bytes());
 		return groupName(model);
 	}
