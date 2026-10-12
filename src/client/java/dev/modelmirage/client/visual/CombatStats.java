@@ -12,21 +12,23 @@ import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Session kill/death counts from what the server broadcasts to nearby players, so they work on any server,
- * minigames included. Like vanilla kill credit, a death or totem pop counts for us when we were the last
- * player to damage that entity within five seconds, even if fire or a fall finished it.
+ * Kill/death events from what the server broadcasts to nearby players, so they work on any server,
+ * minigames included. A death or totem pop within 30 seconds of our hit is ours when no other player hit it
+ * after us, whatever finished it (fire, a fall, a mob); if another player hit it after us, it is an assist.
  *
  * <p>Since 1.19.4 every damage event names its cause (the shooter for arrows, the player who broke an end
  * crystal or lit TNT). Older servers reached through ViaVersion send damage without a cause, so we also credit
  * our own melee hits, damage next to our own projectiles, and damage right after we broke a crystal nearby.
  */
 public final class CombatStats {
-	private static final long CREDIT_NANOS = 5_000_000_000L;
+	/** How long our hit stays ours: a kill if nobody else hits after us, else an assist. */
+	private static final long CREDIT_NANOS = 30_000_000_000L;
 	/** Entity id → when we last damaged it; dropped when another player hits it after us. */
 	private static final Map<Integer, Long> CREDIT = new HashMap<>();
+	/** Entity id → when we last damaged it, kept when others hit it too: an assist if someone else finishes it. */
+	private static final Map<Integer, Long> HITS = new HashMap<>();
 	private static final long CRYSTAL_NANOS = 500_000_000L;
 	private static final double PROJECTILE_REACH = 3, CRYSTAL_REACH = 12;
-	private static int playerKills, mobKills, deaths, totemsPopped, totemsLost;
 	private static Vec3 crystal;
 	private static long crystalTime;
 
@@ -61,10 +63,11 @@ public final class CombatStats {
 
 	static void damage(int self, int entityId, int causeId, boolean causeIsPlayer, long now) {
 		if (entityId == self) return;
-		if (causeId == self) CREDIT.put(entityId, now);
+		if (causeId == self) { CREDIT.put(entityId, now); HITS.put(entityId, now); }
 		else if (causeIsPlayer) CREDIT.remove(entityId);
-		// The map only holds recently hit entities; forget anything past the credit window.
+		// The maps only hold recently hit entities; forget anything past their windows.
 		if (CREDIT.size() > 256) CREDIT.values().removeIf(time -> now - time > CREDIT_NANOS);
+		if (HITS.size() > 256) HITS.values().removeIf(time -> now - time > CREDIT_NANOS);
 	}
 
 	public static void entityEvent(Entity entity, byte event) {
@@ -74,18 +77,25 @@ public final class CombatStats {
 	}
 
 	static void entityEvent(int self, int entityId, boolean isPlayer, byte event, long now) {
+		long millis = System.currentTimeMillis();
 		if (entityId == self) {
-			if (event == EntityEvent.PROTECTED_FROM_DEATH) totemsLost++;
+			if (event == EntityEvent.PROTECTED_FROM_DEATH) CombatSessions.record(session -> session.totemsLost++, millis);
 			return;
 		}
-		Long hit = CREDIT.get(entityId);
+		Long hit = CREDIT.get(entityId), touched = HITS.get(entityId);
 		boolean ours = hit != null && now - hit <= CREDIT_NANOS;
-		if (event == EntityEvent.PROTECTED_FROM_DEATH && ours) totemsPopped++;
+		boolean helped = !ours && touched != null && now - touched <= CREDIT_NANOS;
+		if (event == EntityEvent.PROTECTED_FROM_DEATH) {
+			if (ours) CombatSessions.record(session -> session.totemsPopped++, millis);
+			else if (helped) CombatSessions.record(session -> session.totemAssists++, millis);
+		}
 		if (event == EntityEvent.DEATH) {
 			CREDIT.remove(entityId);
-			if (!ours) return;
-			if (isPlayer) playerKills++;
-			else mobKills++;
+			HITS.remove(entityId);
+			if (ours && isPlayer) CombatSessions.record(session -> session.playerKills++, millis);
+			else if (ours) CombatSessions.record(session -> session.mobKills++, millis);
+			else if (helped && isPlayer) CombatSessions.record(session -> session.pvpAssists++, millis);
+			else if (helped) CombatSessions.record(session -> session.pveAssists++, millis);
 		}
 	}
 
@@ -95,16 +105,19 @@ public final class CombatStats {
 		if (client.player != null) died(client.player.getId(), playerId);
 	}
 
-	static void died(int self, int playerId) { if (playerId == self) deaths++; }
-
-	/** A new connection or server switch starts a new session. */
-	public static void reset() {
-		CREDIT.clear();
-		crystal = null;
-		playerKills = mobKills = deaths = totemsPopped = totemsLost = 0;
+	static void died(int self, int playerId) {
+		if (playerId == self) CombatSessions.record(session -> { session.pvpDeaths++; session.pveDeaths++; }, System.currentTimeMillis());
 	}
 
-	static String players() { return playerKills + "/" + deaths; }
-	static String mobs() { return mobKills + "/" + deaths; }
-	static String totems() { return totemsPopped + "/" + totemsLost; }
+	/** Entity ids and pending crystal belong to one connection; the counts live in {@link CombatSessions}. */
+	public static void joined() {
+		CREDIT.clear();
+		HITS.clear();
+		crystal = null;
+		CombatSessions.enter(CombatSessions.key(Minecraft.getInstance()), System.currentTimeMillis());
+	}
+
+	static String players() { return CombatSessions.format(CombatSessions.Counter.PVP); }
+	static String mobs() { return CombatSessions.format(CombatSessions.Counter.PVE); }
+	static String totems() { return CombatSessions.format(CombatSessions.Counter.TOTEMS); }
 }

@@ -108,6 +108,17 @@ public final class Visuals {
 		if (config.has("BoyKisser") && !config.has("Mascot")) config.add("Mascot", config.get("BoyKisser"));
 	}
 
+	private static final Map<String, Runnable> ACTIONS = new LinkedHashMap<>();
+
+	/** Handler of an "action" setting, e.g. a reset button in a module card. */
+	public static void action(String module, String setting, Runnable handler) { ACTIONS.put(module + "." + setting, handler); }
+
+	public static void run(String module, String setting) {
+		Runnable handler = ACTIONS.get(module + "." + setting);
+		if (handler == null) throw new IllegalStateException("No handler for HUD action " + module + "." + setting);
+		handler.run();
+	}
+
 	public static List<VisualModule> modules() { return List.copyOf(MODULES.values()); }
 	public static VisualModule module(String id) {
 		VisualModule module = MODULES.get(id);

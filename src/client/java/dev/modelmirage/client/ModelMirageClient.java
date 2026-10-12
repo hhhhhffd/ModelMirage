@@ -8,6 +8,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import dev.modelmirage.client.catalog.CatalogService;
 import dev.modelmirage.client.render.RuntimeModels;
 import dev.modelmirage.client.render.MascotAnimations;
+import dev.modelmirage.client.visual.CombatSessions;
 import dev.modelmirage.client.visual.SystemStats;
 import dev.modelmirage.client.visual.Visuals;
 import dev.modelmirage.client.visual.VisualHud;
@@ -34,6 +35,9 @@ public class ModelMirageClient implements ClientModInitializer {
 		Visuals.load();
 		VisualPreferences.load();
 		VisualHud.register();
+		Visuals.action("Watermark", "resetPvp", () -> CombatSessions.reset(CombatSessions.Counter.PVP));
+		Visuals.action("Watermark", "resetTotems", () -> CombatSessions.reset(CombatSessions.Counter.TOTEMS));
+		Visuals.action("Watermark", "resetPve", () -> CombatSessions.reset(CombatSessions.Counter.PVE));
 		ScreenEvents.AFTER_INIT.register((client, screen, width, height) -> {
 			if (!(screen instanceof ChatScreen)) return;
 			HudInteraction interaction = new HudInteraction();
@@ -54,7 +58,10 @@ public class ModelMirageClient implements ClientModInitializer {
 			dev.modelmirage.client.gui.Backdrop.close();
 			SystemStats.close();
 		});
-		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> SystemStats.resetServer());
+		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+			SystemStats.resetServer();
+			CombatSessions.leave(System.currentTimeMillis());
+		});
 
 		var category = KeyMapping.Category.register(Identifier.fromNamespaceAndPath("modelmirage", "controls"));
 		openKey = KeyMappingHelper.registerKeyMapping(new KeyMapping(
@@ -64,6 +71,7 @@ public class ModelMirageClient implements ClientModInitializer {
 				category));
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			VisualHud.tick();
+			CombatSessions.tick(System.currentTimeMillis());
 			// Runtime atlases need the shaders from Minecraft's initial resource load.
 			if (!catalogStarted && client.isGameLoadFinished()) {
 				catalogStarted = true;

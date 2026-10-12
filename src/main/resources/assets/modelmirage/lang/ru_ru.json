@@ -220,7 +220,10 @@
   "modelmirage.row.checklist": "%s из %s",
   "modelmirage.hud.no_link": "Нет связи %sс",
   "modelmirage.row.items": "Элементы",
-  "modelmirage.module.Watermark.showKdPlayers": "K/D игроки",
-  "modelmirage.module.Watermark.showTotems": "Тотемы снёс/потерял",
-  "modelmirage.module.Watermark.showKdMobs": "K/D мобы"
+  "modelmirage.module.Watermark.showKdPlayers": "K/D/A игроки",
+  "modelmirage.module.Watermark.showTotems": "Тотемы снёс/потерял/помог",
+  "modelmirage.module.Watermark.showKdMobs": "K/D/A мобы",
+  "modelmirage.module.Watermark.resetPvp": "Счётчик PVP",
+  "modelmirage.module.Watermark.resetTotems": "Счётчик тотемов",
+  "modelmirage.module.Watermark.resetPve": "Счётчик PVE"
 }

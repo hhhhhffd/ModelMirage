@@ -23,6 +23,7 @@ public final class Settings {
 			case "number" -> new SliderRow(setting.name(), setting.min, setting.max, setting.step, setting.unit,
 					() -> setting.value.getAsDouble(), value -> { setting.set(new JsonPrimitive(value)); changed.run(); });
 			case "color" -> new ColorRow(setting.name(), () -> setting.value.getAsInt(), value -> { setting.set(new JsonPrimitive(value)); changed.run(); });
+			case "action" -> new ButtonRow(setting.name(), Lang.tr("modelmirage.action.reset"), () -> Visuals.run(setting.moduleId, setting.id));
 			case "choice" -> new ChoiceRow(setting.name(), setting.options, () -> setting.value.getAsString(), value -> { setting.set(new JsonPrimitive(value)); changed.run(); });
 			default -> throw new IllegalArgumentException("Unsupported setting type " + setting.type);
 		};

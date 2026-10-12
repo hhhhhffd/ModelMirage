@@ -187,6 +187,24 @@
         "group": "items"
       },
       {
+        "id": "resetPvp",
+        "type": "action",
+        "value": "",
+        "when": "showKdPlayers"
+      },
+      {
+        "id": "resetTotems",
+        "type": "action",
+        "value": "",
+        "when": "showTotems"
+      },
+      {
+        "id": "resetPve",
+        "type": "action",
+        "value": "",
+        "when": "showKdMobs"
+      },
+      {
         "id": "order",
         "type": "order",
         "value": "title,signal,ping,fps,low,name,time,head,cpu,clock,gpu,tps,server,memory,speed,kdp,totems,kdm,jitter,link"

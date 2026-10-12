@@ -100,6 +100,8 @@ public final class VisualModule {
 					if (options.stream().noneMatch(option -> option.id().equals(id))) throw new IllegalArgumentException("Unknown option " + id + " for " + this.id);
 					yield new JsonPrimitive(id);
 				}
+				// Buttons such as "reset" have no value; their handler is registered in Visuals.
+				case "action" -> new JsonPrimitive("");
 				case "order" -> {
 					// Known items in the saved order; unknown ones are dropped and missing ones keep their default place at the end.
 					List<String> result = new ArrayList<>();

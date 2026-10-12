@@ -220,7 +220,10 @@
   "modelmirage.row.checklist": "%s of %s",
   "modelmirage.hud.no_link": "No link %ss",
   "modelmirage.row.items": "Items",
-  "modelmirage.module.Watermark.showKdPlayers": "K/D players",
-  "modelmirage.module.Watermark.showTotems": "Totems popped/lost",
-  "modelmirage.module.Watermark.showKdMobs": "K/D mobs"
+  "modelmirage.module.Watermark.showKdPlayers": "K/D/A players",
+  "modelmirage.module.Watermark.showTotems": "Totems popped/lost/assisted",
+  "modelmirage.module.Watermark.showKdMobs": "K/D/A mobs",
+  "modelmirage.module.Watermark.resetPvp": "PVP counter",
+  "modelmirage.module.Watermark.resetTotems": "Totem counter",
+  "modelmirage.module.Watermark.resetPve": "PVE counter"
 }

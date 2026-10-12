@@ -32,6 +32,6 @@ public abstract class CombatEventsMixin {
 
 	@Inject(method = "handleLogin", at = @At("TAIL"))
 	private void modelmirage$session(ClientboundLoginPacket packet, CallbackInfo callback) {
-		CombatStats.reset();
+		CombatStats.joined();
 	}
 }
