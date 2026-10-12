@@ -187,19 +187,15 @@ public final class ModelMirageScreen extends Screen {
 		Columns columns = new Columns();
 		switch (page) {
 			case HUD -> {
-				VisualModule hud = Visuals.module("Interface");
-				if (matches(hud, query)) {
-					Group general = new Group().caption("F", Lang.tr("modelmirage.caption.general")).title(Lang.tr("modelmirage.module.Interface"));
-					for (VisualModule.Setting setting : hud.settings.values()) general.add(Settings.row(setting, this::changed));
-					general.add(new ButtonRow(Lang.tr("modelmirage.hud.panel_layout"), Lang.tr("modelmirage.action.open"), this::openEditor));
-					columns.children.add(general);
-				}
-				boolean first = true;
+				// Scale, glass and the global switch live in Settings; this page holds the panels only.
+				int index = 0;
 				for (VisualModule module : Visuals.modules()) {
 					if (!module.isPanel() || !matches(module, query)) continue;
 					Group group = Settings.module(module, this::changed);
-					if (first) group.caption("G", Lang.tr("modelmirage.caption.panels"));
-					first = false;
+					// Both columns start with a caption line so their first cards line up.
+					if (index == 0) group.caption("G", Lang.tr("modelmirage.caption.panels"));
+					else if (index == 1) group.caption("", " ");
+					index++;
 					columns.children.add(group);
 				}
 			}
@@ -254,9 +250,17 @@ public final class ModelMirageScreen extends Screen {
 		Group look = new Group().caption("J", Lang.tr("modelmirage.settings.appearance")).title(Lang.tr("modelmirage.settings.look"));
 		look.add(new ColorRow(Lang.tr("modelmirage.settings.accent"), () -> MirageUi.ACCENT, color -> { MirageUi.ACCENT = color; preferencesChanged(); }));
 		look.add(new SliderRow(Lang.tr("modelmirage.settings.menu_scale"), 0.75, 1.5, 0.05, "x", () -> VisualPreferences.guiScale, value -> { VisualPreferences.guiScale = (float) value; preferencesChanged(); }));
-		look.add(new SliderRow(Lang.tr("modelmirage.settings.blur"), 0, 30, 1, "", () -> VisualPreferences.blur, value -> { VisualPreferences.blur = (float) value; preferencesChanged(); }));
-		look.add(new SliderRow(Lang.tr("modelmirage.settings.dim"), 0, 100, 5, "%", () -> VisualPreferences.opacity * 100, value -> { VisualPreferences.opacity = (float) value / 100; preferencesChanged(); }));
 		look.add(new ToggleRow(Lang.tr("modelmirage.settings.animations"), () -> VisualPreferences.animations, value -> { VisualPreferences.animations = value; preferencesChanged(); }));
+		Group hud = new Group().caption("G", Lang.tr("modelmirage.settings.hud")).title(Lang.tr("modelmirage.settings.hud_title"))
+				.toggle(() -> VisualPreferences.hudEnabled, value -> { VisualPreferences.hudEnabled = value; preferencesChanged(); });
+		hud.add(new SliderRow(Lang.tr("modelmirage.settings.hud_scale"), 0.5, 1.5, 0.05, "x", () -> VisualPreferences.hudScale, value -> { VisualPreferences.hudScale = (float) value; preferencesChanged(); }));
+		hud.add(new ToggleRow(Lang.tr("modelmirage.settings.accent_icons"), () -> VisualPreferences.accentIcons, value -> { VisualPreferences.accentIcons = value; preferencesChanged(); }));
+		hud.add(new ButtonRow(Lang.tr("modelmirage.hud.panel_layout"), Lang.tr("modelmirage.action.open"), this::openEditor));
+		// One glass for the menu and every HUD panel; a panel can switch to its own in its card.
+		Group glass = new Group().caption("F", Lang.tr("modelmirage.settings.glass")).title(Lang.tr("modelmirage.settings.glass_title"));
+		glass.add(new SliderRow(Lang.tr("modelmirage.settings.blur"), 0, 30, 1, "px", () -> VisualPreferences.blur, value -> { VisualPreferences.blur = (float) value; preferencesChanged(); }));
+		glass.add(new SliderRow(Lang.tr("modelmirage.settings.tint"), 0, 90, 5, "%", () -> VisualPreferences.tint, value -> { VisualPreferences.tint = (float) value; preferencesChanged(); }));
+		glass.add(new SliderRow(Lang.tr("modelmirage.settings.dim"), 0, 100, 5, "%", () -> VisualPreferences.opacity * 100, value -> { VisualPreferences.opacity = (float) value / 100; preferencesChanged(); }));
 		Group source = new Group().caption("E", Lang.tr("modelmirage.settings.catalog")).title(Lang.tr("modelmirage.settings.catalog_source"));
 		source.add(new InfoRow(Lang.tr("modelmirage.settings.status"), ModelMirageScreen::catalogStatus));
 		source.add(new InfoRow(Lang.tr("modelmirage.settings.models"), () -> String.valueOf(CatalogService.models().size())));
@@ -264,7 +268,7 @@ public final class ModelMirageScreen extends Screen {
 		Group about = new Group().caption("D", Lang.tr("modelmirage.settings.about")).title("ModelMirage");
 		about.add(new InfoRow(Lang.tr("modelmirage.settings.version"), () -> FabricLoader.getInstance().getModContainer("modelmirage").map(mod -> mod.getMetadata().getVersion().getFriendlyString()).orElse("?")));
 		about.add(new InfoRow(Lang.tr("modelmirage.settings.open_menu"), () -> ModelMirageClient.openKey.getTranslatedKeyMessage().getString()));
-		for (Group group : List.of(look, source, about)) {
+		for (Group group : List.of(look, hud, glass, source, about)) {
 			boolean visible = query.isEmpty() || group.title.toLowerCase(Locale.ROOT).contains(query) || group.caption.toLowerCase(Locale.ROOT).contains(query)
 					|| group.rows.stream().anyMatch(row -> row instanceof Row line && line.label.toLowerCase(Locale.ROOT).contains(query));
 			if (visible) columns.children.add(group);

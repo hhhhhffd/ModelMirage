@@ -57,6 +57,8 @@ class LangFilesTest {
 			moduleKeys.add(moduleKey);
 			for (JsonElement settingElement : module.getAsJsonArray("settings")) {
 				JsonObject setting = settingElement.getAsJsonObject();
+				// Orders are dragged on the HUD and never shown as a named row.
+				if (setting.get("type").getAsString().equals("order")) continue;
 				String settingKey = moduleKey + "." + setting.get("id").getAsString();
 				moduleKeys.add(settingKey);
 				JsonArray options = setting.getAsJsonArray("options");

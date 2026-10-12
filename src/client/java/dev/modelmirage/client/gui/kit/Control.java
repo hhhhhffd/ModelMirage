@@ -1,6 +1,7 @@
 package dev.modelmirage.client.gui.kit;
 
 import dev.modelmirage.client.gui.MirageUi;
+import java.util.function.BooleanSupplier;
 import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 
@@ -11,6 +12,9 @@ import net.minecraft.client.input.KeyEvent;
 public abstract class Control {
 	public float x, y, width, height;
 	public boolean visible = true;
+	/** Extra condition evaluated every layout, e.g. a slider that only matters while a switch is on. */
+	public BooleanSupplier when;
+	public boolean shown() { return visible && (when == null || when.getAsBoolean()); }
 	protected float hover;
 
 	/** Places the control and returns its height. */
@@ -24,7 +28,7 @@ public abstract class Control {
 	public abstract void render(Surface surface);
 
 	public boolean contains(double mouseX, double mouseY) {
-		return visible && mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + height;
+		return shown() && mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + height;
 	}
 
 	/** Eases {@link #hover} towards the hovered state; returns it for convenience. */

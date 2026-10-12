@@ -20,6 +20,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -48,23 +49,31 @@ public final class VisualHud {
 	private static float seconds;
 	private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm");
 	private static final float CHIP_GAP = 15;
+	private static final String HEAD = "head";
+	private static final int HEAD_SIZE = 14;
+	private static final List<ChipBox> WATERMARK_CHIPS = new ArrayList<>();
+	/** Watermark element being dragged to a new place; highlighted while set. */
+	static String draggedChip;
 	private static float hudScale = 1;
+	private static boolean chatOpen;
+	/** GUI pixels covered by the chat input line; panels resting on the bottom edge step above it. */
+	static final float CHAT_INPUT = 15;
 	private VisualHud() { }
 
 	public static void register() {
 		HudLayout.load();
 		HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, Identifier.fromNamespaceAndPath("modelmirage", "visual_hud"), VisualHud::extract);
 		HudElementRegistry.replaceElement(VanillaHudElements.CROSSHAIR, original -> (graphics, delta) -> {
-			if (!Visuals.enabled("Crosshair")) original.extractRenderState(graphics, delta);
+			if (!active("Crosshair")) original.extractRenderState(graphics, delta);
 		});
 		HudElementRegistry.replaceElement(VanillaHudElements.BOSS_BAR, original -> (graphics, delta) -> {
-			if (!Visuals.enabled("NoRender") || !Visuals.module("NoRender").bool("bossbar")) original.extractRenderState(graphics, delta);
+			if (!active("NoRender") || !Visuals.module("NoRender").bool("bossbar")) original.extractRenderState(graphics, delta);
 		});
 		HudElementRegistry.replaceElement(VanillaHudElements.SCOREBOARD, original -> (graphics, delta) -> {
-			if (!Visuals.enabled("NoRender") || !Visuals.module("NoRender").bool("scoreboard")) original.extractRenderState(graphics, delta);
+			if (!active("NoRender") || !Visuals.module("NoRender").bool("scoreboard")) original.extractRenderState(graphics, delta);
 		});
 		HudElementRegistry.replaceElement(VanillaHudElements.MOB_EFFECTS, original -> (graphics, delta) -> {
-			if (!Visuals.enabled("Effects")) original.extractRenderState(graphics, delta);
+			if (!active("Effects")) original.extractRenderState(graphics, delta);
 		});
 	}
 
@@ -96,11 +105,13 @@ public final class VisualHud {
 	}
 
 	public static List<Panel> panels() { return List.copyOf(PANELS); }
+	/** The global HUD switch hands every element back to vanilla. */
+	private static boolean active(String module) { return VisualPreferences.hudEnabled && Visuals.enabled(module); }
 	private static boolean on(String module, boolean editor) { return editor || Visuals.enabled(module); }
 
 	private static void extract(GuiGraphicsExtractor graphics, DeltaTracker delta) {
 		Minecraft client = Minecraft.getInstance();
-		if (client.player == null || client.gui.hud.isHidden() || client.gui.screen() instanceof dev.modelmirage.client.ModelMirageScreen
+		if (client.player == null || !VisualPreferences.hudEnabled || client.gui.hud.isHidden() || client.gui.screen() instanceof dev.modelmirage.client.ModelMirageScreen
 				|| client.gui.screen() instanceof HudEditorScreen) {
 			// Hidden panels must not keep stale hit boxes for chat dragging.
 			PANELS.clear();
@@ -117,7 +128,8 @@ public final class VisualHud {
 		seconds = Math.clamp((now - frame) / 1e9f, 0.0005f, 0.1f);
 		frame = now;
 		// Upstream fixes the physical size independently of Minecraft's GUI scale.
-		hudScale = (float) (2f / client.getWindow().getGuiScale()) * Visuals.module("Interface").number("hudScale");
+		hudScale = (float) (2f / client.getWindow().getGuiScale()) * VisualPreferences.hudScale;
+		chatOpen = !editor && client.gui.screen() instanceof ChatScreen;
 		graphics.pose().pushMatrix();
 		graphics.pose().scale(hudScale, hudScale);
 		int width = Math.round(graphics.guiWidth() / hudScale);
@@ -130,7 +142,7 @@ public final class VisualHud {
 		armor(graphics, editor, width, height);
 		moduleList(graphics, editor, width);
 		binds(graphics, editor, width, height);
-		if (Visuals.enabled("Crosshair") && !editor) crosshair(graphics);
+		if (active("Crosshair") && !editor) crosshair(graphics);
 		mascot(graphics, editor);
 		graphics.pose().popMatrix();
 	}
@@ -140,15 +152,32 @@ public final class VisualHud {
 	private static Panel locate(GuiGraphicsExtractor graphics, String id, VisualModule module, float defaultX, float defaultY, int width, int height) {
 		int logicalWidth = Math.round(graphics.guiWidth() / hudScale);
 		int logicalHeight = Math.round(graphics.guiHeight() / hudScale);
-		HudLayout.Position position = HudLayout.position(id, defaultX, defaultY, logicalWidth, logicalHeight);
-		int x = Math.clamp(Math.round(position.x() * logicalWidth), 0, Math.max(0, logicalWidth - Math.round(width * position.scale())));
-		int y = Math.clamp(Math.round(position.y() * logicalHeight), 0, Math.max(0, logicalHeight - Math.round(height * position.scale())));
-		Panel panel = new Panel(id, module.id, module.name(), x, y, width, height, hudScale, position.scale());
+		HudLayout.Position position = HudLayout.get(id);
+		float zoom = position == null ? 1 : position.scale();
+		// Shares 0 and 1 mean "against the edge", which keeps a small margin from the window border.
+		float margin = HudInteraction.MARGIN / hudScale;
+		float freeWidth = Math.max(0, logicalWidth - width * zoom - 2 * margin), freeHeight = Math.max(0, logicalHeight - height * zoom - 2 * margin);
+		float left, top;
+		if (position == null) {
+			left = defaultX;
+			top = defaultY;
+		} else if (position.legacy()) {
+			// Shares of the whole window from older layouts become shares of the free space the first time the panel is shown.
+			left = position.x() * logicalWidth;
+			top = position.y() * logicalHeight;
+			HudLayout.place(id, freeWidth > 0 ? (left - margin) / freeWidth : 0, freeHeight > 0 ? (top - margin) / freeHeight : 0);
+		} else {
+			left = margin + position.x() * freeWidth;
+			top = margin + position.y() * freeHeight;
+		}
+		left = Math.clamp(left, margin, margin + freeWidth);
+		top = Math.clamp(top, margin, margin + freeHeight);
+		// With the chat open, anything on the bottom edge steps above its input line and drops back afterwards.
+		if (chatOpen) top = Math.min(top, Math.max(margin, logicalHeight - CHAT_INPUT / hudScale - height * zoom));
+		Panel panel = new Panel(id, module.id, module.name(), Math.round(left), Math.round(top), width, height, hudScale, zoom);
 		PANELS.add(panel);
 		return panel;
 	}
-
-	/** Starts a panel; {@code background} draws the module's own style behind it. */
 	private static Panel begin(GuiGraphicsExtractor graphics, String id, String moduleId, float x, float y, float width, float height, boolean visible, boolean background, boolean editor) {
 		VisualModule module = Visuals.module(moduleId);
 		Motion state = motion(id);
@@ -177,8 +206,11 @@ public final class VisualHud {
 		String style = module.choice("style");
 		if (style.equals("none")) return;
 		if (module.bool("shadow")) MirageUi.shadow(graphics, x, y, width, height, radius);
-		VisualModule look = Visuals.module("Interface");
-		if (style.equals("glass")) MirageUi.glass(graphics, x, y, width, height, radius, look.number("blur"), Math.round(look.number("tint") * 255) << 24 | 0x0C0C10);
+		// Each panel follows the global glass unless it has its own.
+		boolean own = module.settings.containsKey("customGlass") && module.bool("customGlass");
+		float blur = own ? module.number("blur") : VisualPreferences.blur;
+		float tint = own ? module.number("tint") : VisualPreferences.tint;
+		if (style.equals("glass")) MirageUi.glass(graphics, x, y, width, height, radius, blur, Math.round(tint / 100 * 255) << 24 | 0x0C0C10);
 		else MirageUi.shape(graphics, x, y, width, height, radius, 0, 0xE6121216, 0xE60C0C10);
 		MirageUi.shape(graphics, x, y, width, height, radius, 0.8f, 0x1FFFFFFF, 0x08FFFFFF);
 	}
@@ -186,7 +218,7 @@ public final class VisualHud {
 	private static void end(GuiGraphicsExtractor graphics) { MirageUi.alpha = 1; graphics.pose().popMatrix(); }
 
 	private static void icon(GuiGraphicsExtractor graphics, MirageUi.Face face, String glyph, float x, float y, float size) {
-		if (!Visuals.module("Interface").bool("accentIcons")) { face.draw(graphics, glyph, x, y, size, Theme.TEXT_SECONDARY); return; }
+		if (!VisualPreferences.accentIcons) { face.draw(graphics, glyph, x, y, size, Theme.TEXT_SECONDARY); return; }
 		MirageUi.glow(graphics, x + size / 2, y + size / 2, size / 2, MirageUi.ACCENT, 0.12f);
 		face.draw(graphics, glyph, x, y, size, MirageUi.ACCENT);
 	}
@@ -198,22 +230,41 @@ public final class VisualHud {
 	/** One icon-and-value entry of a single-line panel; a null face means no icon. */
 	private record Chip(String key, MirageUi.Face face, String glyph, float iconSize, String value) { }
 
+	private static float chipWidth(Chip chip, float textSize) {
+		if (chip.key.equals(HEAD)) return HEAD_SIZE;
+		return (chip.face == null ? 0 : chip.iconSize + 4) + MirageUi.SEMIBOLD.width(chip.value, textSize);
+	}
+
 	private static float rowWidth(List<Chip> chips, float textSize) {
 		float width = Math.max(0, chips.size() - 1) * CHIP_GAP;
-		for (Chip chip : chips) width += (chip.face == null ? 0 : chip.iconSize + 4) + MirageUi.SEMIBOLD.width(chip.value, textSize);
+		for (Chip chip : chips) width += chipWidth(chip, textSize);
 		return width;
 	}
 
-	private static void drawRow(GuiGraphicsExtractor graphics, Panel panel, List<Chip> chips, float textSize, float x, String prefix) {
+	private static void drawRow(GuiGraphicsExtractor graphics, Panel panel, List<Chip> chips, float textSize, float x, String prefix, List<ChipBox> boxes) {
 		float textY = Paint.centeredTextY(panel.y(), panel.height(), textSize);
+		float toScreen = panel.scale() * panel.zoom();
 		for (int i = 0; i < chips.size(); i++) {
 			Chip chip = chips.get(i);
-			if (chip.face != null) {
+			float chipWidth = chipWidth(chip, textSize);
+			if (boxes != null) {
+				boxes.add(new ChipBox(chip.key, panel.screenX() + (x - CHIP_GAP / 2 - panel.x()) * toScreen, panel.screenY(), (chipWidth + CHIP_GAP) * toScreen, panel.screenHeight()));
+				if (chip.key.equals(draggedChip)) {
+					MirageUi.shape(graphics, x - 4, panel.y() + 3, chipWidth + 8, panel.height() - 6, 6, 0, MirageUi.opacity(MirageUi.ACCENT, 0.18f), MirageUi.opacity(MirageUi.ACCENT, 0.18f));
+					MirageUi.shape(graphics, x - 4, panel.y() + 3, chipWidth + 8, panel.height() - 6, 6, 0.8f, MirageUi.ACCENT, MirageUi.ACCENT);
+				}
+			}
+			if (chip.key.equals(HEAD)) {
+				face(graphics, Minecraft.getInstance().player, Math.round(x), Math.round(panel.y() + (panel.height() - HEAD_SIZE) / 2f), HEAD_SIZE);
+				x += HEAD_SIZE;
+			} else if (chip.face != null) {
 				icon(graphics, chip.face, chip.glyph, x, panel.y() + (panel.height() - chip.iconSize) / 2f, chip.iconSize);
 				x += chip.iconSize + 4;
 			}
-			animated(graphics, prefix + chip.key, chip.value, x, textY, textSize, Theme.TEXT);
-			x += MirageUi.SEMIBOLD.width(chip.value, textSize);
+			if (!chip.key.equals(HEAD)) {
+				animated(graphics, prefix + chip.key, chip.value, x, textY, textSize, Theme.TEXT);
+				x += MirageUi.SEMIBOLD.width(chip.value, textSize);
+			}
 			if (i < chips.size() - 1) {
 				MirageUi.shape(graphics, x + CHIP_GAP / 2 - 0.9f, panel.y() + panel.height() / 2f - 0.9f, 1.8f, 1.8f, 0.9f, 0, Theme.TEXT_TERTIARY, Theme.TEXT_TERTIARY);
 				x += CHIP_GAP;
@@ -225,18 +276,20 @@ public final class VisualHud {
 		Minecraft client = Minecraft.getInstance();
 		VisualModule module = Visuals.module("Watermark");
 		var info = client.getConnection() == null ? null : client.getConnection().getPlayerInfo(client.player.getUUID());
+		Map<String, Chip> available = new HashMap<>();
+		available.put("title", new Chip("title", module.bool("showLogo") ? MirageUi.LOGO : null, "A", 14, "ModelMirage"));
+		if (module.bool("showPing")) available.put("ping", new Chip("ping", MirageUi.WATERMARK, "D", 9, (info == null ? 0 : info.getLatency()) + " MS"));
+		if (module.bool("showFps")) available.put("fps", new Chip("fps", MirageUi.WATERMARK, "C", 9, client.getFps() + " FPS"));
+		if (module.bool("showName")) available.put("name", new Chip("name", MirageUi.WATERMARK, "B", 9, MirageUi.SEMIBOLD.fit(client.player.getName().getString(), 8, 80)));
+		if (module.bool("showTime")) available.put("time", new Chip("time", null, "", 0, LocalTime.now().format(TIME)));
+		if (module.bool("showHead")) available.put(HEAD, new Chip(HEAD, null, "", 0, ""));
 		List<Chip> chips = new ArrayList<>();
-		chips.add(new Chip("title", module.bool("showLogo") ? MirageUi.LOGO : null, "A", 14, "ModelMirage"));
-		if (module.bool("showPing")) chips.add(new Chip("ping", MirageUi.WATERMARK, "D", 9, (info == null ? 0 : info.getLatency()) + " MS"));
-		if (module.bool("showFps")) chips.add(new Chip("fps", MirageUi.WATERMARK, "C", 9, client.getFps() + " FPS"));
-		if (module.bool("showName")) chips.add(new Chip("name", MirageUi.WATERMARK, "B", 9, MirageUi.SEMIBOLD.fit(client.player.getName().getString(), 8, 80)));
-		if (module.bool("showTime")) chips.add(new Chip("time", null, "", 0, LocalTime.now().format(TIME)));
-		boolean head = module.bool("showHead");
-		float total = 18 + (head ? 22 : 0) + rowWidth(chips, 8);
+		for (String key : module.order("order")) if (available.containsKey(key)) chips.add(available.get(key));
+		float total = 18 + rowWidth(chips, 8);
+		WATERMARK_CHIPS.clear();
 		Panel panel = begin(graphics, "logo", "Watermark", (width - total) / 2, 10, total, 24, on("Watermark", editor), true, editor);
 		if (panel == null) return;
-		drawRow(graphics, panel, chips, 8, panel.x() + 9, "watermark");
-		if (head) face(graphics, client.player, Math.round(panel.x() + panel.width() - 23), panel.y() + 5, 14);
+		drawRow(graphics, panel, chips, 8, panel.x() + 9, "watermark", WATERMARK_CHIPS);
 		end(graphics);
 	}
 
@@ -250,7 +303,7 @@ public final class VisualHud {
 		if (module.bool("showDirection")) chips.add(new Chip("direction", null, "", 0, client.player.getDirection().getName().substring(0, 1).toUpperCase(Locale.ROOT)));
 		Panel panel = begin(graphics, "info", "Coordinates", 10, height - 28, 18 + rowWidth(chips, 7.5f), 22, on("Coordinates", editor) && !chips.isEmpty(), true, editor);
 		if (panel == null) return;
-		drawRow(graphics, panel, chips, 7.5f, panel.x() + 9, "info");
+		drawRow(graphics, panel, chips, 7.5f, panel.x() + 9, "info", null);
 		end(graphics);
 	}
 
@@ -264,7 +317,8 @@ public final class VisualHud {
 		boolean armor = module.bool("showArmor");
 		float textX = 9 + (head ? 31 : 0);
 		float contentHeight = 11 + (health ? 14 : 0) + (armor ? 12 : 0);
-		Panel panel = begin(graphics, "target", "TargetHud", width * 0.545f, height * 0.585f, textX + 9 + 88, 18 + Math.max(head ? 24 : 0, contentHeight), visible, true, editor);
+		// Right of the crosshair, where the inventory sample (bottom centre) cannot reach it.
+		Panel panel = begin(graphics, "target", "TargetHud", width / 2f + 24, height / 2f - 24, textX + 9 + 88, 18 + Math.max(head ? 24 : 0, contentHeight), visible, true, editor);
 		if (panel == null) return;
 		if (entity != null) {
 			targetHealth = MirageUi.animate(targetHealth, entity.getHealth(), 12, seconds);
@@ -304,7 +358,7 @@ public final class VisualHud {
 	}
 
 	private static void face(GuiGraphicsExtractor graphics, LivingEntity entity, int x, int y, int size) {
-		if (Visuals.module("Interface").bool("accentIcons")) MirageUi.glow(graphics, x + size / 2f, y + size / 2f, size / 2f, MirageUi.ACCENT, 0.12f);
+		if (VisualPreferences.accentIcons) MirageUi.glow(graphics, x + size / 2f, y + size / 2f, size / 2f, MirageUi.ACCENT, 0.12f);
 		if (entity instanceof AbstractClientPlayer player) {
 			Identifier skin = player.getSkin().body().texturePath();
 			MirageUi.head(graphics, skin, x, y, size, true, entity.hurtTime > 0 ? 0xFFFF8080 : MirageUi.TEXT);
@@ -379,52 +433,72 @@ public final class VisualHud {
 	}
 
 	private static void inventory(GuiGraphicsExtractor graphics, boolean editor, int width, int height) {
+		VisualModule module = Visuals.module("Inventory");
 		var inventory = Minecraft.getInstance().player.getInventory();
 		boolean stored = false;
 		for (int slot = 9; slot < 36 && !stored; slot++) stored = !inventory.getItem(slot).isEmpty();
+		// "inventory" draws stack counts and durability like the real inventory; "items" only what lies there.
+		boolean full = module.choice("display").equals("inventory");
+		int pitch = full ? 20 : 18, padding = 4;
+		int panelWidth = padding * 2 + 8 * pitch + 16, panelHeight = padding * 2 + 2 * pitch + 16;
 		// An empty glass block in the middle of the screen is noise; show it only when there is something to see.
-		// The default sits right above the armor panel (at most 31 high), which sits above the hotbar.
-		Panel panel = begin(graphics, "inventory", "Inventory", width / 2f - 94, height - 44 / hudScale - 31 - 8 - 64, 188, 64, on("Inventory", editor) && (editor || stored), true, editor);
+		// The default sits right above the armor panel, which sits above the hotbar.
+		Panel panel = begin(graphics, "inventory", "Inventory", (width - panelWidth) / 2f, height - 44 / hudScale - 31 - 8 - panelHeight, panelWidth, panelHeight,
+				on("Inventory", editor) && (editor || stored), true, editor);
 		if (panel == null) return;
 		for (int slot = 0; slot < 27; slot++) {
-			ItemStack item = Minecraft.getInstance().player.getInventory().getItem(slot + 9);
+			ItemStack item = inventory.getItem(slot + 9);
 			if (editor && slot < 9 && item.isEmpty()) {
 				var examples = List.of(Items.DIAMOND_SWORD, Items.GOLDEN_APPLE, Items.ENDER_PEARL, Items.COBWEB, Items.OBSIDIAN, Items.TOTEM_OF_UNDYING, Items.DIAMOND_PICKAXE, Items.BOW, Items.ARROW);
 				item = new ItemStack(examples.get(slot), slot == 0 || slot == 5 || slot == 6 || slot == 7 ? 1 : 64);
+				if (slot == 6) item.setDamageValue(item.getMaxDamage() / 3);
 			}
-			// 20px pitch leaves room for stack counts, which overhang the 16px icon.
-			int x = panel.x() + 5 + slot % 9 * 20;
-			int y = panel.y() + 5 + slot / 9 * 18;
+			int x = panel.x() + padding + slot % 9 * pitch;
+			int y = panel.y() + padding + slot / 9 * pitch;
 			graphics.item(item, x, y);
-			graphics.itemDecorations(Minecraft.getInstance().font, item, x, y);
+			if (full) graphics.itemDecorations(Minecraft.getInstance().font, item, x, y);
 		}
 		end(graphics);
 	}
-
 	private static void armor(GuiGraphicsExtractor graphics, boolean editor, int width, int height) {
-		boolean durability = Visuals.module("Armor").bool("showDurability");
+		VisualModule module = Visuals.module("Armor");
+		String durability = module.choice("durability");
+		boolean percent = durability.equals("percent");
+		boolean vertical = module.bool("vertical");
 		EquipmentSlot[] slots = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
 		var examples = List.of(Items.DIAMOND_HELMET, Items.DIAMOND_CHESTPLATE, Items.DIAMOND_LEGGINGS, Items.DIAMOND_BOOTS);
-		// Only worn pieces are listed, so the panel is as wide as the armor; the editor shows a full sample set.
+		// Only worn pieces are listed, so the panel is as large as the armor; the editor shows a worn sample set.
 		List<ItemStack> shown = new ArrayList<>();
 		for (int index = 0; index < slots.length; index++) {
 			ItemStack item = Minecraft.getInstance().player.getItemBySlot(slots[index]);
-			if (editor && item.isEmpty()) item = new ItemStack(examples.get(index));
+			if (editor && item.isEmpty()) {
+				item = new ItemStack(examples.get(index));
+				item.setDamageValue(item.getMaxDamage() * index / 5);
+			}
 			if (!item.isEmpty()) shown.add(item);
 		}
-		int panelHeight = durability ? 31 : 26;
-		// Above the hotbar and the health/food rows (44 GUI pixels), whatever the HUD scale.
-		Panel panel = begin(graphics, "armor", "Armor", width / 2f + 10, height - 44 / hudScale - panelHeight, 6 + Math.max(1, shown.size()) * 20, panelHeight,
-				on("Armor", editor) && !shown.isEmpty(), true, editor);
+		int count = Math.max(1, shown.size()), padding = 3, pitch = 18;
+		int label = percent ? (vertical ? 22 : 9) : 0;
+		int panelWidth = vertical ? padding * 2 + 16 + label : padding * 2 + count * pitch - 2;
+		int panelHeight = vertical ? padding * 2 + count * pitch - 2 : padding * 2 + 16 + label;
+		// Horizontal: above the hotbar and the health/food rows (44 GUI pixels); vertical: right of the hotbar.
+		float defaultX = vertical ? width / 2f + 95 / hudScale : width / 2f + 10;
+		float defaultY = vertical ? height - panelHeight - 4 : height - 44 / hudScale - panelHeight;
+		Panel panel = begin(graphics, "armor", "Armor", defaultX, defaultY, panelWidth, panelHeight, on("Armor", editor) && !shown.isEmpty(), true, editor);
 		if (panel == null) return;
 		for (int index = 0; index < shown.size(); index++) {
 			ItemStack item = shown.get(index);
-			int x = panel.x() + 5 + index * 20;
-			graphics.item(item, x, panel.y() + 5);
-			if (durability && item.isBarVisible()) {
-				MirageUi.shape(graphics, x + 1, panel.y() + 23, 14, 2, 1, 0, Theme.CONTROL, Theme.CONTROL);
+			int x = panel.x() + padding + (vertical ? 0 : index * pitch);
+			int y = panel.y() + padding + (vertical ? index * pitch : 0);
+			graphics.item(item, x, y);
+			// Exactly what the inventory slot shows: the vanilla durability bar on the icon.
+			if (durability.equals("inventory")) graphics.itemDecorations(Minecraft.getInstance().font, item, x, y);
+			if (percent && item.isDamageableItem()) {
+				int left = Math.round(100f * (item.getMaxDamage() - item.getDamageValue()) / item.getMaxDamage());
+				String text = left + "%";
 				int color = 0xFF000000 | item.getBarColor();
-				MirageUi.shape(graphics, x + 1, panel.y() + 23, 14 * item.getBarWidth() / 13f, 2, 1, 0, color, color);
+				if (vertical) MirageUi.SEMIBOLD.draw(graphics, text, x + 19, Paint.centeredTextY(y, 16, 6.5f), 6.5f, color);
+				else MirageUi.SEMIBOLD.draw(graphics, text, x + 8 - MirageUi.SEMIBOLD.width(text, 6) / 2, y + 17, 6, color);
 			}
 		}
 		end(graphics);
@@ -432,7 +506,7 @@ public final class VisualHud {
 
 	private static void moduleList(GuiGraphicsExtractor graphics, boolean editor, int width) {
 		VisualModule panelModule = Visuals.module("ArrayList");
-		List<VisualModule> modules = Visuals.modules().stream().filter(module -> !module.isPanel() && !module.category.equals("mascot") && !module.id.equals("Interface"))
+		List<VisualModule> modules = Visuals.modules().stream().filter(module -> !module.isPanel() && !module.category.equals("mascot"))
 				.sorted(Comparator.comparingDouble((VisualModule module) -> MirageUi.SEMIBOLD.width(module.name(), 7.5f)).reversed()).toList();
 		float w = 60;
 		float h = 0;
@@ -444,7 +518,7 @@ public final class VisualHud {
 			h += row.height;
 		}
 		boolean empty = editor && h < 1;
-		Panel panel = begin(graphics, "modules", "ArrayList", width - (empty ? 130 : w) - 15, 210, empty ? 130 : w, empty ? 18 : Math.max(18, h - 4), on("ArrayList", editor) && (editor || h > 1), false, editor);
+		Panel panel = begin(graphics, "modules", "ArrayList", width - (empty ? 130 : w) - 15, 40, empty ? 130 : w, empty ? 18 : Math.max(18, h - 4), on("ArrayList", editor) && (editor || h > 1), false, editor);
 		if (panel == null) return;
 		if (empty) {
 			background(graphics, panelModule, panel.x(), panel.y(), panel.width(), panel.height(), 7);
@@ -523,6 +597,14 @@ public final class VisualHud {
 		MascotAnimations.draw(graphics, selected, panel.x(), panel.y(), panel.width(), panel.height(), MirageUi.opacity(0xFFFFFFFF, MirageUi.alpha));
 		end(graphics);
 	}
+
+	/** Screen bounds of one watermark element, including half the gap on each side. */
+	record ChipBox(String key, float x, float y, float width, float height) {
+		boolean contains(double px, double py) { return px >= x && px < x + width && py >= y && py < y + height; }
+		float center() { return x + width / 2; }
+	}
+
+	static List<ChipBox> watermarkChips() { return List.copyOf(WATERMARK_CHIPS); }
 
 	public record Panel(String id, String module, String label, int x, int y, int width, int height, float scale, float zoom) {
 		public float screenX() { return x * scale; }

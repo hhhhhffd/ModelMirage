@@ -2,7 +2,11 @@ package dev.modelmirage.client.visual;
 
 import dev.modelmirage.client.Lang;
 import dev.modelmirage.client.gui.MirageUi;
+import dev.modelmirage.client.gui.kit.Group;
+import dev.modelmirage.client.gui.kit.Surface;
 import dev.modelmirage.client.gui.kit.Theme;
+import dev.modelmirage.client.gui.kit.ToggleRow;
+import java.util.List;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
@@ -14,8 +18,36 @@ public final class HudEditorScreen extends Screen {
 	private long frame = System.nanoTime();
 	private final String legend = Lang.tr("modelmirage.hud.editor.legend");
 	private final Screen parent;
-	private final HudInteraction interaction = new HudInteraction();
-	public HudEditorScreen(Screen parent) { super(Component.translatable("modelmirage.hud.editor")); this.parent = parent; }
+	private final HudInteraction interaction = new HudInteraction(true);
+	/** Every HUD element with only its on/off switch; settings stay in the right-click popover. */
+	private final Group elements = new Group().title(Lang.tr("modelmirage.hud.editor.elements"));
+	private final Surface listSurface = new Surface();
+	private float listScale = 1;
+
+	public HudEditorScreen(Screen parent) {
+		super(Component.translatable("modelmirage.hud.editor"));
+		this.parent = parent;
+		for (VisualModule module : Visuals.modules()) {
+			if (!module.isPanel() && !module.category.equals("mascot") && !module.id.equals("Crosshair")) continue;
+			elements.add(new ToggleRow(module.name(), () -> module.enabled, value -> { module.enabled = value; interaction.settingsChanged(); }));
+		}
+	}
+
+	private void drawElements(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
+		listScale = 1.6f / (float) minecraft.getWindow().getGuiScale();
+		float viewWidth = width / listScale, viewHeight = height / listScale;
+		float listWidth = 150;
+		float listHeight = elements.layout(0, 0, listWidth);
+		// Docked to the right edge, centred vertically.
+		elements.layout(viewWidth - listWidth - 10, Math.max(10, (viewHeight - listHeight) / 2), listWidth);
+		graphics.pose().pushMatrix();
+		graphics.pose().scale(listScale, listScale);
+		listSurface.begin(graphics, mouseX / listScale, mouseY / listScale);
+		MirageUi.shadow(graphics, elements.x, elements.y, elements.width, elements.height, Theme.RADIUS_CARD);
+		MirageUi.glass(graphics, elements.x, elements.y, elements.width, elements.height, Theme.RADIUS_CARD, VisualPreferences.blur, Theme.POPUP_TINT);
+		elements.render(listSurface);
+		graphics.pose().popMatrix();
+	}
 
 	@Override
 	public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) { }
@@ -43,11 +75,16 @@ public final class HudEditorScreen extends Screen {
 		MirageUi.MEDIUM.draw(graphics, legend, pillX + 12, pillY + (22 - size) / 2 - 0.3f, size, Theme.TEXT_SECONDARY);
 		MirageUi.alpha = previous;
 		graphics.pose().popMatrix();
+		drawElements(graphics, mouseX, mouseY);
 		interaction.draw(graphics, mouseX, mouseY, true);
 	}
 
 	@Override
-	public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) { return interaction.click(event, doubleClick, width, height); }
+	public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+		double x = event.x() / listScale, y = event.y() / listScale;
+		if (!interaction.popoverOpen() && elements.contains(x, y)) { listSurface.mouseClicked(List.of(elements), x, y, event.button()); return true; }
+		return interaction.click(event, doubleClick, width, height);
+	}
 	@Override
 	public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) { return interaction.drag(event, width, height); }
 	@Override

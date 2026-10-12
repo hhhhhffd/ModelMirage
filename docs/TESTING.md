@@ -21,11 +21,12 @@ JUnit 5 + `fabric-loader-junit`: тесты запускаются внутри 
 | `RuntimeModelsTest` | 16 | проверка PNG до декодирования: сигнатура, IHDR, размеры |
 | `ItemModelOverridesTest` | 29 | чтение и запись `modelmirage.json`, старый id Blood Axe Mace, отказ на неверных записях |
 | `CosmeticSelectionsTest` | 23 | `changer.json`, перенос `builtin-boykisser` → `builtin-mascot` |
-| `HudLayoutTest` | 11 | `hud.json`: ограничение позиций и масштаба, перенос `boykisser` → `mascot` в любом порядке ключей |
-| `VisualsMigrationTest` | 3 | перенос модуля `BoyKisser` → `Mascot` без затирания нового |
+| `HudLayoutTest` | 14 | `hud.json`: версия 2 и старый формат, ограничение позиций и масштаба, перенос `boykisser` → `mascot` в любом порядке ключей |
+| `HudSnapTest` | 4 | прилипание панелей к краям, центру, соседним панелям и сетке |
+| `VisualsMigrationTest` | 6 | перенос модуля `BoyKisser` → `Mascot`, настроек «Интерфейса» в общие, переключателя прочности брони; порядок элементов Watermark |
 | `LangFilesTest` | 8 | `en_us` и `ru_ru`: одинаковые ключи, одинаковые `%s`/`%d`, нет кириллицы в английском, все ключи из кода и `modules.json` переведены, лишних нет |
 
-Итого 290 тестов, около 2 секунд (2026-10-12, Linux x64, JDK 25).
+Итого 300 тестов, около 2 секунд (2026-10-12, Linux x64, JDK 25).
 
 Без GPU и игрового окна не проверяются: запекание квадов и установка атласа
 (`MeshGeometry.bake`, `Prepared.install`), сетевые запросы каталога, отрисовка
@@ -74,7 +75,7 @@ JUnit 5 + `fabric-loader-junit`: тесты запускаются внутри 
 Minecraft 26.2, Fabric Loader 0.19.5, Fabric API 0.161.0+26.2, OpenJDK 25,
 Linux/Xvfb/llvmpipe, тестовый каталог из `scripts/qa-catalog.py`.
 
-- `./gradlew build`: успешно, 290 тестов, 0 падений.
+- `./gradlew build`: успешно, 300 тестов, 0 падений.
 - JAR содержит `lwjgl-assimp` 3.4.1 с нативами Linux x64, Windows x64,
   macOS x64/arm64, около 16.7 MB.
 - Все сценарии выше пройдены. Шрифты и кадры персонажа загружаются из новых

@@ -34,7 +34,7 @@ public class ModelMirageClient implements ClientModInitializer {
 		VisualHud.register();
 		ScreenEvents.AFTER_INIT.register((client, screen, width, height) -> {
 			if (!(screen instanceof ChatScreen)) return;
-			HudInteraction interaction = new HudInteraction();
+			HudInteraction interaction = new HudInteraction(false);
 			ScreenMouseEvents.allowMouseClick(screen).register((current, event) -> !interaction.click(event, false, current.width, current.height));
 			ScreenMouseEvents.allowMouseDrag(screen).register((current, event, dx, dy) -> !interaction.drag(event, current.width, current.height));
 			ScreenMouseEvents.allowMouseRelease(screen).register((current, event) -> !interaction.release(event));

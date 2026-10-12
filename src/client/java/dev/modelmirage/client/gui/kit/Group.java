@@ -34,7 +34,7 @@ public final class Group extends Control {
 		this.width = width;
 		float cursor = y + captionHeight() + headerHeight() + (rows.isEmpty() ? 0 : 3);
 		for (Control row : rows) {
-			if (!row.visible) continue;
+			if (!row.shown()) continue;
 			cursor += row.layout(x, cursor, width);
 		}
 		height = cursor - y + (rows.isEmpty() ? 0 : 3);
@@ -73,7 +73,7 @@ public final class Group extends Control {
 		MirageUi.alpha = previous * dim;
 		Control last = null;
 		for (Control row : rows) {
-			if (!row.visible) continue;
+			if (!row.shown()) continue;
 			if (last != null) Paint.separator(graphics, x + 12, row.y, width - 24);
 			row.render(surface);
 			last = row;
@@ -89,7 +89,7 @@ public final class Group extends Control {
 			if (button == 0 && enabled != null) onToggle.accept(!enabled.getAsBoolean());
 			return true;
 		}
-		for (Control row : rows) if (row.visible && row.mouseClicked(surface, mouseX, mouseY, button)) return true;
+		for (Control row : rows) if (row.shown() && row.mouseClicked(surface, mouseX, mouseY, button)) return true;
 		return mouseY >= top;
 	}
 }

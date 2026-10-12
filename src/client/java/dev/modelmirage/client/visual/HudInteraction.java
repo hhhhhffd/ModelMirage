@@ -1,5 +1,6 @@
 package dev.modelmirage.client.visual;
 
+import com.google.gson.JsonPrimitive;
 import com.mojang.blaze3d.platform.InputConstants;
 import dev.modelmirage.client.Lang;
 import dev.modelmirage.client.gui.MirageUi;
@@ -9,7 +10,9 @@ import dev.modelmirage.client.gui.kit.Surface;
 import dev.modelmirage.client.gui.kit.Theme;
 import java.io.IOException;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import net.minecraft.client.Minecraft;
@@ -20,7 +23,14 @@ import org.slf4j.LoggerFactory;
 
 /** The editor and chat use the same hit boxes, snapping and persistence. */
 public final class HudInteraction {
+	/** GUI pixels: distance kept from the window edges, gap between neighbours, snap reach and editor grid step. */
+	static final float MARGIN = 4, GAP = 4, SNAP = 5, GRID = 8;
+	private final boolean editor;
 	private final Deque<Map<String, HudLayout.Position>> history = new ArrayDeque<>();
+	/** Watermark element under the press; it is reordered once the drag goes sideways. */
+	private String pendingChip;
+	private boolean reordering;
+	private double pressX, pressY;
 	private String selected;
 	private boolean dragging;
 	private boolean dirty;
@@ -34,6 +44,8 @@ public final class HudInteraction {
 	private String error = "";
 	private Surface surface = new Surface();
 	private HudPopover popover;
+
+	public HudInteraction(boolean editor) { this.editor = editor; }
 
 	public boolean click(MouseButtonEvent event, boolean doubleClick, int width, int height) {
 		if (popover != null) {
@@ -58,6 +70,10 @@ public final class HudInteraction {
 			dragging = true;
 			offsetX = (float) event.x() - panel.screenX();
 			offsetY = (float) event.y() - panel.screenY();
+			pressX = event.x();
+			pressY = event.y();
+			pendingChip = panel.module().equals("Watermark") ? VisualHud.watermarkChips().stream().filter(chip -> chip.contains(event.x(), event.y()))
+					.map(VisualHud.ChipBox::key).findFirst().orElse(null) : null;
 			return true;
 		}
 		selected = null;
@@ -69,24 +85,79 @@ public final class HudInteraction {
 		if (!dragging || event.button() != 0) return false;
 		var panel = selectedPanel();
 		if (panel == null) { dragging = false; return false; }
-		float x = (float) event.x() - offsetX;
-		float y = (float) event.y() - offsetY;
-		guideX = guideY = -1;
-		float[] horizontal = {8, width / 2f - panel.screenWidth() / 2, width - panel.screenWidth() - 8};
-		float[] vertical = {8, height / 2f - panel.screenHeight() / 2, height - panel.screenHeight() - 8};
-		for (float snap : horizontal) if (Math.abs(x - snap) <= 4) { x = snap; guideX = snap == horizontal[1] ? width / 2f : snap == horizontal[2] ? width - 8 : 8; break; }
-		for (float snap : vertical) if (Math.abs(y - snap) <= 4) { y = snap; guideY = snap == vertical[1] ? height / 2f : snap == vertical[2] ? height - 8 : 8; break; }
-		for (var other : VisualHud.panels()) {
-			if (other.id().equals(selected)) continue;
-			if (guideX < 0 && Math.abs(x - other.screenX()) <= 4) { x = other.screenX(); guideX = x; }
-			if (guideY < 0 && Math.abs(y - other.screenY()) <= 4) { y = other.screenY(); guideY = y; }
+		if (pendingChip != null && !reordering) {
+			// Sideways inside the watermark reorders its elements; pulling it away moves the whole panel.
+			if (Math.abs(event.y() - pressY) > panel.screenHeight() * 0.75f) pendingChip = null;
+			else if (Math.abs(event.x() - pressX) > 3) { reordering = true; VisualHud.draggedChip = pendingChip; }
+			else return true;
 		}
-		move(panel, x, y, width, height);
+		if (reordering) { reorder(event.x()); return true; }
+		guideX = guideY = -1;
+		float[][] columns = VisualHud.panels().stream().filter(other -> !other.id().equals(selected))
+				.map(other -> new float[] {other.screenX(), other.screenWidth()}).toArray(float[][]::new);
+		float[][] rows = VisualHud.panels().stream().filter(other -> !other.id().equals(selected))
+				.map(other -> new float[] {other.screenY(), other.screenHeight()}).toArray(float[][]::new);
+		// Shift places freely; otherwise edges, centres and neighbours attract, and the editor grid catches the rest.
+		boolean free = event.hasShiftDown();
+		float[] x = free ? new float[] {(float) event.x() - offsetX, -1} : snapAxis((float) event.x() - offsetX, panel.screenWidth(), width, columns, editor);
+		float[] y = free ? new float[] {(float) event.y() - offsetY, -1} : snapAxis((float) event.y() - offsetY, panel.screenHeight(), height, rows, editor);
+		guideX = x[1];
+		guideY = y[1];
+		move(panel, x[0], y[0], width, height);
 		return true;
 	}
 
+	/**
+	 * Snaps the start of a panel of {@code size} on one axis to the window margins and centre or to another panel's
+	 * start, end, centre or the spot next to it. Returns {start, guide line or -1}; without a match the grid applies.
+	 */
+	static float[] snapAxis(float start, float size, float extent, float[][] others, boolean grid) {
+		List<float[]> candidates = new ArrayList<>();
+		candidates.add(new float[] {MARGIN, MARGIN});
+		candidates.add(new float[] {(extent - size) / 2, extent / 2});
+		candidates.add(new float[] {extent - size - MARGIN, extent - MARGIN});
+		for (float[] other : others) {
+			float otherStart = other[0], otherEnd = other[0] + other[1];
+			candidates.add(new float[] {otherStart, otherStart});
+			candidates.add(new float[] {otherEnd - size, otherEnd});
+			candidates.add(new float[] {otherStart + other[1] / 2 - size / 2, otherStart + other[1] / 2});
+			candidates.add(new float[] {otherEnd + GAP, otherEnd + GAP / 2});
+			candidates.add(new float[] {otherStart - GAP - size, otherStart - GAP / 2});
+		}
+		float[] best = null;
+		for (float[] candidate : candidates) {
+			if (Math.abs(candidate[0] - start) <= SNAP && (best == null || Math.abs(candidate[0] - start) < Math.abs(best[0] - start))) best = candidate;
+		}
+		if (best != null) return new float[] {best[0], best[1]};
+		return new float[] {grid ? Math.round(start / GRID) * GRID : start, -1};
+	}
+
+	/** Moves the dragged watermark element to where the pointer is among the visible ones; hidden ones keep their slots. */
+	private void reorder(double pointerX) {
+		VisualModule module = Visuals.module("Watermark");
+		List<String> visible = new ArrayList<>(VisualHud.watermarkChips().stream().map(VisualHud.ChipBox::key).toList());
+		if (!visible.remove(pendingChip)) return;
+		int index = (int) VisualHud.watermarkChips().stream().filter(chip -> !chip.key().equals(pendingChip) && chip.center() < pointerX).count();
+		visible.add(index, pendingChip);
+		List<String> order = new ArrayList<>(module.order("order"));
+		Iterator<String> next = visible.iterator();
+		for (int i = 0; i < order.size(); i++) if (visible.contains(order.get(i))) order.set(i, next.next());
+		String value = String.join(",", order);
+		if (value.equals(String.join(",", module.order("order")))) return;
+		module.setting("order").set(new JsonPrimitive(value));
+		settingsChanged();
+	}
+
 	private void move(VisualHud.Panel panel, float x, float y, int width, int height) {
-		HudLayout.move(panel.id(), Math.clamp(x, 0, Math.max(0, width - panel.screenWidth())), Math.clamp(y, 0, Math.max(0, height - panel.screenHeight())), width, height);
+		place(panel.id(), x, y, panel.screenWidth(), panel.screenHeight(), width, height);
+	}
+
+	private void place(String id, float x, float y, float panelWidth, float panelHeight, int width, int height) {
+		// Same mapping as VisualHud.locate: shares of the space between the margins.
+		float freeWidth = width - panelWidth - 2 * MARGIN, freeHeight = height - panelHeight - 2 * MARGIN;
+		// In chat, dropping a panel onto the input line means "bottom of the screen"; it is lifted only while chat is open.
+		if (!editor && y + panelHeight > height - VisualHud.CHAT_INPUT - 0.5f) y = height - panelHeight - MARGIN;
+		HudLayout.place(id, freeWidth > 0 ? Math.clamp(x - MARGIN, 0, freeWidth) / freeWidth : 0, freeHeight > 0 ? Math.clamp(y - MARGIN, 0, freeHeight) / freeHeight : 0);
 		dirty = true;
 	}
 
@@ -95,6 +166,9 @@ public final class HudInteraction {
 		if (!dragging || event.button() != 0) return false;
 		dragging = false;
 		guideX = guideY = -1;
+		pendingChip = null;
+		reordering = false;
+		VisualHud.draggedChip = null;
 		save();
 		return true;
 	}
@@ -107,11 +181,12 @@ public final class HudInteraction {
 			if (!panel.contains(x, y)) continue;
 			selected = panel.id();
 			remember();
-			HudLayout.Position position = HudLayout.position(selected, panel.screenX(), panel.screenY(), width, height);
-			float zoom = Math.clamp(position.scale() + (float) amount * 0.05f, 0.5f, 2);
+			float zoom = Math.clamp(panel.zoom() + (float) amount * 0.05f, 0.5f, 2);
 			float ratio = zoom / panel.zoom();
-			move(panel, Math.clamp(position.x() * width, 0, Math.max(0, width - panel.screenWidth() * ratio)), Math.clamp(position.y() * height, 0, Math.max(0, height - panel.screenHeight() * ratio)), width, height);
+			// Keep the top-left corner where it is while the size changes.
+			move(panel, panel.screenX(), panel.screenY(), width, height);
 			HudLayout.scale(selected, zoom);
+			place(selected, panel.screenX(), panel.screenY(), panel.screenWidth() * ratio, panel.screenHeight() * ratio, width, height);
 			save();
 			return true;
 		}
@@ -140,8 +215,7 @@ public final class HudInteraction {
 		float dx = event.key() == InputConstants.KEY_LEFT ? -step : event.key() == InputConstants.KEY_RIGHT ? step : 0;
 		float dy = event.key() == InputConstants.KEY_UP ? -step : event.key() == InputConstants.KEY_DOWN ? step : 0;
 		if (dx == 0 && dy == 0) return false;
-		HudLayout.Position position = HudLayout.position(selected, panel.screenX(), panel.screenY(), width, height);
-		remember(); move(panel, position.x() * width + dx, position.y() * height + dy, width, height); save(); return true;
+		remember(); move(panel, panel.screenX() + dx, panel.screenY() + dy, width, height); save(); return true;
 	}
 
 	private VisualHud.Panel selectedPanel() { return VisualHud.panels().stream().filter(panel -> panel.id().equals(selected)).findFirst().orElse(null); }
@@ -169,7 +243,7 @@ public final class HudInteraction {
 		save();
 	}
 
-	private void settingsChanged() {
+	void settingsChanged() {
 		settingsDirty = true;
 		settingsDeadline = System.nanoTime() + 500_000_000L;
 	}
@@ -192,6 +266,7 @@ public final class HudInteraction {
 
 	public void draw(GuiGraphicsExtractor graphics, double mouseX, double mouseY, boolean editor) {
 		if (settingsDeadline != 0 && System.nanoTime() - settingsDeadline >= 0) save();
+		if (editor) drawGrid(graphics);
 		float scale = scale();
 		for (var panel : VisualHud.panels()) {
 			boolean active = panel.id().equals(selected);
@@ -226,6 +301,18 @@ public final class HudInteraction {
 	}
 
 	/** Glass label with the panel name and zoom, above the panel or below it when there is no room. */
+	/** Faint lines every two grid steps, brighter while a panel is dragged, and the window centre lines. */
+	private void drawGrid(GuiGraphicsExtractor graphics) {
+		int width = graphics.guiWidth(), height = graphics.guiHeight();
+		int line = dragging && !reordering ? 0x1CFFFFFF : 0x0CFFFFFF;
+		int step = Math.round(GRID * 2);
+		for (int x = step; x < width; x += step) graphics.fill(x, 0, x + 1, height, line);
+		for (int y = step; y < height; y += step) graphics.fill(0, y, width, y + 1, line);
+		int centre = MirageUi.opacity(MirageUi.ACCENT, 0.22f);
+		graphics.fill(width / 2, 0, width / 2 + 1, height, centre);
+		graphics.fill(0, height / 2, width, height / 2 + 1, centre);
+	}
+
 	private void chip(GuiGraphicsExtractor graphics, VisualHud.Panel panel, float scale) {
 		String name = panel.label();
 		String zoom = Math.round(panel.zoom() * 100) + "%";

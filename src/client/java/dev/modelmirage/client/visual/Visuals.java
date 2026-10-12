@@ -35,6 +35,8 @@ public final class Visuals {
 			JsonObject config = JsonParser.parseString(Files.readString(CONFIG)).getAsJsonObject();
 			migratePanels(config);
 			migrateMascot(config);
+			migrateInterface(config);
+			migrateArmor(config);
 			for (VisualModule module : MODULES.values()) {
 				JsonObject saved = config.getAsJsonObject(module.id);
 				if (saved == null) continue;
@@ -72,6 +74,33 @@ public final class Visuals {
 		// Interface is no longer a switchable feature; a leftover binding could not be removed from the UI.
 		interfaceModule.addProperty("enabled", true);
 		interfaceModule.addProperty("bind", -1);
+	}
+
+	/**
+	 * HUD scale, glass tint and icon colours used to be settings of an "Interface" module; they are global
+	 * preferences now. appearance.json, loaded afterwards, wins once it has them.
+	 */
+	static void migrateInterface(JsonObject config) {
+		JsonObject old = config.getAsJsonObject("Interface");
+		if (old == null || !old.has("settings")) return;
+		JsonObject settings = old.getAsJsonObject("settings");
+		try {
+			if (settings.has("hudScale")) VisualPreferences.hudScale = Math.clamp(settings.get("hudScale").getAsFloat(), 0.5f, 1.5f);
+			if (settings.has("tint")) VisualPreferences.tint = Math.clamp(Math.round(settings.get("tint").getAsFloat() * 20) * 5f, 0, 90);
+			if (settings.has("accentIcons")) VisualPreferences.accentIcons = settings.get("accentIcons").getAsBoolean();
+		} catch (RuntimeException failure) {
+			LoggerFactory.getLogger("ModelMirage").warn("Ignoring old interface settings: {}", failure.getMessage());
+		}
+	}
+
+	/** The armor durability switch became a choice; "off" maps to hidden. */
+	static void migrateArmor(JsonObject config) {
+		JsonObject armor = config.getAsJsonObject("Armor");
+		if (armor == null || !armor.has("settings")) return;
+		JsonObject settings = armor.getAsJsonObject("settings");
+		if (!settings.has("showDurability") || settings.has("durability")) return;
+		try { if (!settings.get("showDurability").getAsBoolean()) settings.addProperty("durability", "hidden"); }
+		catch (RuntimeException failure) { LoggerFactory.getLogger("ModelMirage").warn("Ignoring old armor durability switch: {}", failure.getMessage()); }
 	}
 
 	/** Older configs called the HUD mascot module "BoyKisser"; a saved "Mascot" entry wins. */

@@ -1,43 +1,5 @@
 [
   {
-    "id": "Interface",
-    "category": "hud",
-    "enabled": true,
-    "settings": [
-      {
-        "id": "hudScale",
-        "type": "number",
-        "value": 0.65,
-        "min": 0.5,
-        "max": 1.5,
-        "step": 0.05,
-        "unit": "x"
-      },
-      {
-        "id": "blur",
-        "type": "number",
-        "value": 8,
-        "min": 0,
-        "max": 20,
-        "step": 1,
-        "unit": "px"
-      },
-      {
-        "id": "tint",
-        "type": "number",
-        "value": 0.35,
-        "min": 0,
-        "max": 0.9,
-        "step": 0.05
-      },
-      {
-        "id": "accentIcons",
-        "type": "boolean",
-        "value": true
-      }
-    ]
-  },
-  {
     "id": "Watermark",
     "category": "panel",
     "enabled": true,
@@ -57,6 +19,31 @@
             "id": "none"
           }
         ]
+      },
+      {
+        "id": "customGlass",
+        "type": "boolean",
+        "value": false
+      },
+      {
+        "id": "blur",
+        "type": "number",
+        "value": 16,
+        "min": 0,
+        "max": 30,
+        "step": 1,
+        "unit": "px",
+        "when": "customGlass"
+      },
+      {
+        "id": "tint",
+        "type": "number",
+        "value": 35,
+        "min": 0,
+        "max": 90,
+        "step": 5,
+        "unit": "%",
+        "when": "customGlass"
       },
       {
         "id": "shadow",
@@ -92,6 +79,11 @@
         "id": "showHead",
         "type": "boolean",
         "value": true
+      },
+      {
+        "id": "order",
+        "type": "order",
+        "value": "title,ping,fps,name,time,head"
       }
     ]
   },
@@ -115,6 +107,31 @@
             "id": "none"
           }
         ]
+      },
+      {
+        "id": "customGlass",
+        "type": "boolean",
+        "value": false
+      },
+      {
+        "id": "blur",
+        "type": "number",
+        "value": 16,
+        "min": 0,
+        "max": 30,
+        "step": 1,
+        "unit": "px",
+        "when": "customGlass"
+      },
+      {
+        "id": "tint",
+        "type": "number",
+        "value": 35,
+        "min": 0,
+        "max": 90,
+        "step": 5,
+        "unit": "%",
+        "when": "customGlass"
       },
       {
         "id": "shadow",
@@ -160,6 +177,31 @@
         ]
       },
       {
+        "id": "customGlass",
+        "type": "boolean",
+        "value": false
+      },
+      {
+        "id": "blur",
+        "type": "number",
+        "value": 16,
+        "min": 0,
+        "max": 30,
+        "step": 1,
+        "unit": "px",
+        "when": "customGlass"
+      },
+      {
+        "id": "tint",
+        "type": "number",
+        "value": 35,
+        "min": 0,
+        "max": 90,
+        "step": 5,
+        "unit": "%",
+        "when": "customGlass"
+      },
+      {
         "id": "shadow",
         "type": "boolean",
         "value": true
@@ -203,6 +245,31 @@
         ]
       },
       {
+        "id": "customGlass",
+        "type": "boolean",
+        "value": false
+      },
+      {
+        "id": "blur",
+        "type": "number",
+        "value": 16,
+        "min": 0,
+        "max": 30,
+        "step": 1,
+        "unit": "px",
+        "when": "customGlass"
+      },
+      {
+        "id": "tint",
+        "type": "number",
+        "value": 35,
+        "min": 0,
+        "max": 90,
+        "step": 5,
+        "unit": "%",
+        "when": "customGlass"
+      },
+      {
         "id": "shadow",
         "type": "boolean",
         "value": true
@@ -241,9 +308,47 @@
         ]
       },
       {
+        "id": "customGlass",
+        "type": "boolean",
+        "value": false
+      },
+      {
+        "id": "blur",
+        "type": "number",
+        "value": 16,
+        "min": 0,
+        "max": 30,
+        "step": 1,
+        "unit": "px",
+        "when": "customGlass"
+      },
+      {
+        "id": "tint",
+        "type": "number",
+        "value": 35,
+        "min": 0,
+        "max": 90,
+        "step": 5,
+        "unit": "%",
+        "when": "customGlass"
+      },
+      {
         "id": "shadow",
         "type": "boolean",
         "value": true
+      },
+      {
+        "id": "display",
+        "type": "choice",
+        "value": "inventory",
+        "options": [
+          {
+            "id": "inventory"
+          },
+          {
+            "id": "items"
+          }
+        ]
       }
     ]
   },
@@ -269,14 +374,55 @@
         ]
       },
       {
+        "id": "customGlass",
+        "type": "boolean",
+        "value": false
+      },
+      {
+        "id": "blur",
+        "type": "number",
+        "value": 16,
+        "min": 0,
+        "max": 30,
+        "step": 1,
+        "unit": "px",
+        "when": "customGlass"
+      },
+      {
+        "id": "tint",
+        "type": "number",
+        "value": 35,
+        "min": 0,
+        "max": 90,
+        "step": 5,
+        "unit": "%",
+        "when": "customGlass"
+      },
+      {
         "id": "shadow",
         "type": "boolean",
         "value": true
       },
       {
-        "id": "showDurability",
+        "id": "durability",
+        "type": "choice",
+        "value": "inventory",
+        "options": [
+          {
+            "id": "inventory"
+          },
+          {
+            "id": "percent"
+          },
+          {
+            "id": "hidden"
+          }
+        ]
+      },
+      {
+        "id": "vertical",
         "type": "boolean",
-        "value": true
+        "value": false
       }
     ]
   },
@@ -300,6 +446,31 @@
             "id": "none"
           }
         ]
+      },
+      {
+        "id": "customGlass",
+        "type": "boolean",
+        "value": false
+      },
+      {
+        "id": "blur",
+        "type": "number",
+        "value": 16,
+        "min": 0,
+        "max": 30,
+        "step": 1,
+        "unit": "px",
+        "when": "customGlass"
+      },
+      {
+        "id": "tint",
+        "type": "number",
+        "value": 35,
+        "min": 0,
+        "max": 90,
+        "step": 5,
+        "unit": "%",
+        "when": "customGlass"
       },
       {
         "id": "shadow",
@@ -328,6 +499,31 @@
             "id": "none"
           }
         ]
+      },
+      {
+        "id": "customGlass",
+        "type": "boolean",
+        "value": false
+      },
+      {
+        "id": "blur",
+        "type": "number",
+        "value": 16,
+        "min": 0,
+        "max": 30,
+        "step": 1,
+        "unit": "px",
+        "when": "customGlass"
+      },
+      {
+        "id": "tint",
+        "type": "number",
+        "value": 35,
+        "min": 0,
+        "max": 90,
+        "step": 5,
+        "unit": "%",
+        "when": "customGlass"
       },
       {
         "id": "shadow",

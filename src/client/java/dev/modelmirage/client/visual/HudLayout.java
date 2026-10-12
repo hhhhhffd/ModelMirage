@@ -11,8 +11,13 @@ import java.util.Map;
 import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Saved panel placements. x and y are shares of the space left around the panel (0 = left/top edge,
+ * 1 = right/bottom edge), so a panel resting on an edge or in the centre stays there at any window size.
+ */
 public final class HudLayout {
 	private static final Path CONFIG = FabricLoader.getInstance().getConfigDir().resolve("modelmirage/hud.json");
+	private static final int VERSION = 2;
 	private static final Map<String, Position> POSITIONS = new LinkedHashMap<>();
 	private HudLayout() { }
 	public static void load() {
@@ -23,10 +28,15 @@ public final class HudLayout {
 			LoggerFactory.getLogger("ModelMirage").error("Could not load HUD layout", failure);
 		}
 	}
-	/** Positions are clamped into the window and scale into 0.5–2; any invalid entry rejects the file. */
+
+	/** Positions are clamped to 0–1 and scale to 0.5–2; any invalid entry rejects the file. Files without a version, and entries marked legacy, use the old meaning. */
 	static Map<String, Position> parse(String json) {
+		JsonObject root = JsonParser.parseString(json).getAsJsonObject();
+		// Before version 2, x and y were the top-left corner as a share of the whole window.
+		boolean legacy = !root.has("version") || root.get("version").getAsInt() < VERSION;
 		Map<String, Position> result = new LinkedHashMap<>();
-		for (var entry : JsonParser.parseString(json).getAsJsonObject().entrySet()) {
+		for (var entry : root.entrySet()) {
+			if (entry.getKey().equals("version")) continue;
 			JsonObject position = entry.getValue().getAsJsonObject();
 			float x = position.get("x").getAsFloat();
 			float y = position.get("y").getAsFloat();
@@ -35,30 +45,33 @@ public final class HudLayout {
 			// Older layouts saved the mascot panel as "boykisser".
 			String id = entry.getKey().equals("boykisser") ? "mascot" : entry.getKey();
 			if (!id.equals(entry.getKey()) && result.containsKey(id)) continue;
-			result.put(id, new Position(Math.clamp(x, 0, 1), Math.clamp(y, 0, 1), Math.clamp(scale, 0.5f, 2)));
+			boolean old = legacy || position.has("legacy") && position.get("legacy").getAsBoolean();
+			result.put(id, new Position(Math.clamp(x, 0, 1), Math.clamp(y, 0, 1), Math.clamp(scale, 0.5f, 2), old));
 		}
 		return result;
 	}
 
-	public static Position position(String id, float defaultX, float defaultY, int width, int height) {
-		return POSITIONS.getOrDefault(id, new Position(defaultX / width, defaultY / height, 1));
-	}
-	public static void move(String id, float x, float y, int width, int height) {
-		float scale = POSITIONS.containsKey(id) ? POSITIONS.get(id).scale() : 1;
-		POSITIONS.put(id, new Position(Math.clamp(x / width, 0, 1), Math.clamp(y / height, 0, 1), scale));
+	/** The saved placement, or null while the panel sits at its default spot. */
+	public static Position get(String id) { return POSITIONS.get(id); }
+	public static void place(String id, float x, float y) {
+		Position previous = POSITIONS.get(id);
+		POSITIONS.put(id, new Position(Math.clamp(x, 0, 1), Math.clamp(y, 0, 1), previous == null ? 1 : previous.scale(), false));
 	}
 	public static void scale(String id, float scale) {
 		Position previous = POSITIONS.get(id);
 		if (previous == null) throw new IllegalArgumentException("HUD panel must be positioned before resizing");
-		POSITIONS.put(id, new Position(previous.x(), previous.y(), Math.clamp(scale, 0.5f, 2)));
+		POSITIONS.put(id, new Position(previous.x(), previous.y(), Math.clamp(scale, 0.5f, 2), previous.legacy()));
 	}
 	public static void reset(String id) { POSITIONS.remove(id); }
 	public static Map<String, Position> snapshot() { return new LinkedHashMap<>(POSITIONS); }
 	public static void restore(Map<String, Position> positions) { POSITIONS.clear(); POSITIONS.putAll(positions); }
 	public static void save() throws IOException {
 		JsonObject result = new JsonObject();
+		result.addProperty("version", VERSION);
 		POSITIONS.forEach((id, position) -> {
 			JsonObject value = new JsonObject();
+			// A legacy entry not drawn since loading keeps its old meaning; it is converted the first time it is shown.
+			if (position.legacy()) value.addProperty("legacy", true);
 			value.addProperty("x", position.x());
 			value.addProperty("y", position.y());
 			value.addProperty("scale", position.scale());
@@ -69,5 +82,5 @@ public final class HudLayout {
 		try { Files.writeString(temporary, result.toString()); Files.move(temporary, CONFIG, StandardCopyOption.REPLACE_EXISTING); }
 		finally { Files.deleteIfExists(temporary); }
 	}
-	public record Position(float x, float y, float scale) { }
+	public record Position(float x, float y, float scale, boolean legacy) { }
 }

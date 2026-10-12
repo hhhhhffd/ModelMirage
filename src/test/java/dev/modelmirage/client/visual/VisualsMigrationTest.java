@@ -30,4 +30,37 @@ class VisualsMigrationTest {
 		Visuals.migrateMascot(config);
 		assertFalse(config.has("Mascot"));
 	}
+
+	@Test
+	void movesInterfaceSettingsIntoThePreferences() {
+		float scale = VisualPreferences.hudScale, tint = VisualPreferences.tint;
+		boolean icons = VisualPreferences.accentIcons;
+		try {
+			Visuals.migrateInterface(json("{\"Interface\":{\"settings\":{\"hudScale\":0.8,\"tint\":0.42,\"accentIcons\":false}}}"));
+			assertEquals(0.8f, VisualPreferences.hudScale, 1e-6);
+			assertEquals(40, VisualPreferences.tint);
+			assertFalse(VisualPreferences.accentIcons);
+		} finally {
+			VisualPreferences.hudScale = scale;
+			VisualPreferences.tint = tint;
+			VisualPreferences.accentIcons = icons;
+		}
+	}
+
+	@Test
+	void turnsTheOldDurabilitySwitchIntoTheHiddenChoice() {
+		JsonObject off = json("{\"Armor\":{\"settings\":{\"showDurability\":false}}}");
+		Visuals.migrateArmor(off);
+		assertEquals("hidden", off.getAsJsonObject("Armor").getAsJsonObject("settings").get("durability").getAsString());
+		JsonObject on = json("{\"Armor\":{\"settings\":{\"showDurability\":true}}}");
+		Visuals.migrateArmor(on);
+		assertFalse(on.getAsJsonObject("Armor").getAsJsonObject("settings").has("durability"));
+	}
+
+	@Test
+	void orderSettingsKeepKnownItemsOnce() {
+		VisualModule module = new VisualModule(json("{\"id\":\"W\",\"category\":\"panel\",\"settings\":[{\"id\":\"order\",\"type\":\"order\",\"value\":\"a,b,c\"}]}"));
+		module.setting("order").set(new com.google.gson.JsonPrimitive("c,x,a,c"));
+		assertEquals(java.util.List.of("c", "a", "b"), module.order("order"));
+	}
 }
