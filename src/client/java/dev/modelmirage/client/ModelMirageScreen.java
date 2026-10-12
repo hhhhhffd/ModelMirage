@@ -84,6 +84,8 @@ public final class ModelMirageScreen extends Screen {
 
 	@Override
 	protected void init() {
+		// The controls below are rebuilt; focus, drags and popups must not keep pointing at the old ones.
+		surface.reset();
 		navigation.clear();
 		roots.clear();
 		close = new Button("", Button.Style.PLAIN, this::onClose);

@@ -105,6 +105,14 @@ public final class Surface {
 	public boolean isFocused(Control control) { return focused == control; }
 	public boolean isCapturing() { return captured != null; }
 
+	/** Forgets focus, capture and the popup, for when the screen replaces its controls. */
+	public void reset() {
+		focus(null);
+		captured = null;
+		popup = null;
+		swallowChar = false;
+	}
+
 	public void open(Control popup) { this.popup = popup; }
 	public void close() {
 		if (popup != null && focused == popup) focus(null);
