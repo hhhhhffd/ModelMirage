@@ -1,162 +1,93 @@
-# Проверки ModelMirage
+# Проверка ModelMirage
 
-Среда: Minecraft 26.2, Fabric Loader 0.19.5, Fabric API 0.161.0+26.2,
-OpenJDK 25, Linux/Xvfb/llvmpipe. Проверено 2026-10-02.
+## Автоматические тесты
 
-## Патч 0.3.1 — NL loadout changer, 2026-10-03
+```bash
+JAVA_HOME=/usr/lib/jvm/java-25-openjdk ./gradlew test
+```
 
-Среда: Minecraft 26.2, JDK 25, Fabric 0.161.0+26.2, Linux/Xvfb/llvmpipe.
-Использована отдельная копия мира `/tmp/modelmirage-changer-qa` и localhost
-каталог с предметом Blood Axe Mace, статической player-моделью QA Avatar,
-PNG-анимацией Remote Dance и записью `format: blender` без декодера.
-Эти тестовые модели и каталог не включены в релиз.
+JUnit 5 + `fabric-loader-junit`: тесты запускаются внутри Fabric Loader, поэтому
+им доступны классы Minecraft (Identifier, NativeImage) и нативный Assimp.
+Сеть и GPU не нужны. Рабочая папка тестов — `build/test-run`. `./gradlew build`
+тоже запускает тесты.
 
-- `./gradlew build --offline --no-daemon`: успешно; `test NO-SOURCE`.
-- Проверены JAR `ModelMirage-0.3.1.jar`, версия в fabric.mod.json, loader SPI,
-  player mixin и mascot runtime. QA-ассеты отсутствуют в JAR.
-- `git diff --check`: успешно.
-- Right Shift открывает Inventory с самостоятельными плитками всех предметов,
-  preview собственного игрока слева и остальных справа.
-- Поиск `diamond_sword` → предмет → Blood Axe Mace. Сброс удалил назначение
-  из `modelmirage.json`; повторное применение восстановило его.
-- Внешняя player-модель скачана по HTTP с проверкой файлов, запечена в 36 faces
-  и назначена self. В preview и третьем лице отрисована именно её геометрия.
-- Та же модель независимо назначена others. Сброс self вернул обычный self
-  preview, сохранив others и mascot в `changer.json`.
-- Внешняя анимация: скачаны definition и два PNG-кадра, работает preview,
-  выбор записан в mascot и отрисован в HUD. «Расположение» открывает HUD editor.
-- Будущий Blender-формат виден с пометкой «Нужен загрузчик». Его файл не
-  скачивается, остальные записи каталога загружаются и применяются.
-- После полного перезапуска восстановлены others, mascot и item override.
-  Renderer сам загрузил выбранные ассеты без resource reload.
-- Проверена нормализация разных размеров geometry thumbnails и правильные
-  screen bounds обоих entity preview при масштабировании всего окна.
-- После остановки localhost-сервера новый запуск сообщил
-  `using verified local index: java.net.ConnectException`: каталог, модель
-  игрока, модель предмета и персонаж восстановились из кеша.
+| Класс | Тестов | Что проверяет |
+| --- | ---: | --- |
+| `CatalogParserTest` | 106 | индекс каталога: schema 1/2, значения по умолчанию, встроенный персонаж, все правила отказа (пути с `..` и `/`, SHA-256, размеры и суммарный лимит, число записей и файлов, id, kind, цвет) |
+| `CatalogFilesTest` | 8 | SHA-256, проверка кеша (битый объект, неверный размер), атомарная запись |
+| `AssimpSceneTest` | 35 | OBJ+MTL (имя без учёта регистра, текстура, `Kd`, `d`), триангуляция, UV, GLB со встроенной PNG, песочница (`/etc/passwd`, `../`, `file://`, `C:/`), мусор в 9 форматах, лимит 100 000 треугольников, NaN/Inf |
+| `AssimpModelsTest` | 26 | список форматов, вписывание в блок, выбор текстуры материала |
+| `MascotAnimationsTest` | 21 | границы размера, интервала и числа кадров, битые и лишние PNG |
+| `RuntimeModelsTest` | 16 | проверка PNG до декодирования: сигнатура, IHDR, размеры |
+| `ItemModelOverridesTest` | 29 | чтение и запись `modelmirage.json`, старый id Blood Axe Mace, отказ на неверных записях |
+| `CosmeticSelectionsTest` | 23 | `changer.json`, перенос `builtin-boykisser` → `builtin-mascot` |
+| `HudLayoutTest` | 11 | `hud.json`: ограничение позиций и масштаба, перенос `boykisser` → `mascot` в любом порядке ключей |
+| `VisualsMigrationTest` | 3 | перенос модуля `BoyKisser` → `Mascot` без затирания нового |
+| `LangFilesTest` | 8 | `en_us` и `ru_ru`: одинаковые ключи, одинаковые `%s`/`%d`, нет кириллицы в английском, все ключи из кода и `modules.json` переведены, лишних нет |
 
-![Inventory 0.3.1](screenshots/changer-inventory-0.3.1.png)
+Итого 286 тестов, около 2 секунд (2026-10-12, Linux x64, JDK 25).
 
-![Модели игроков и будущий декодер](screenshots/changer-players-0.3.1.png)
+Без GPU и игрового окна не проверяются: запекание квадов и установка атласа
+(`MeshGeometry.bake`, `Prepared.install`), сетевые запросы каталога, отрисовка
+меню и HUD. Для них ниже ручной сценарий.
 
-![Персонажи](screenshots/changer-mascots-0.3.1.png)
+## Ручная проверка в игре
 
-![Статическая модель в третьем лице](screenshots/changer-world-0.3.1.png)
+1. Собери тестовый каталог и запусти локальный сервер:
 
-Ограничения: live multiplayer с удалённым игроком не запускался; others
-проверен через отдельный AvatarRenderState в GUI. Blender/Blockbench/FBX
-декодеры и скелетные анимации не реализованы, для них подготовлен API.
-Unit tests отсутствуют. JSON Schema прочитана как JSON, внешнего schema
-validator в среде нет. Плавность на GPU не оценивалась: llvmpipe даёт 4–6 FPS.
-В логах остаются ошибки среды OpenAL/flite/Realms/Xvfb cursor; закрытие
-X11-окна завершает тестовый runClient с ненулевым exit code. Ошибок модели,
-загрузки анимаций или применения mixin в проверенных сценариях не обнаружено.
+   ```bash
+   python3 scripts/qa-catalog.py /tmp/mm-catalog
+   cd /tmp/mm-catalog && python3 -m http.server 8765 --bind 127.0.0.1
+   ```
 
-## Перенос HUD и GUI AstolfoVisuals — 2026-10-03
+   В нём OBJ-меч с MTL и PNG (оранжевая гарда задана только цветом), GLB-куб
+   со встроенной PNG и тот же OBJ как модель игрока.
+2. Запусти клиент с этим каталогом:
 
-Источник: AstolfoVisuals `13ca7da2a789c45a45b9c5c3eea7bb200b00ea2f`.
-Minecraft 26.2 / JDK 25 / Fabric 0.161.0+26.2, Linux/Xvfb/llvmpipe.
-Проверка выполнялась через xdotool и снимки Xvfb в отдельной копии мира
-`/tmp/modelmirage-astolfo-qa`; исходные настройки и мир в `run/` не менялись.
+   ```bash
+   JAVA_HOME=/usr/lib/jvm/java-25-openjdk \
+   JAVA_TOOL_OPTIONS=-Dmodelmirage.catalogUrl=http://localhost:8765/index.json \
+   ./gradlew runClient
+   ```
 
-- `./gradlew build --offline --no-daemon` с JDK 25: успешно.
-- `git diff --check`: успешно. Unit tests отсутствуют (`test NO-SOURCE`).
-- Right Shift открывает чёрный ClickGui с оригинальным логотипом, шрифтами,
-  иконками, двумя колонками модулей и встроенными настройками.
-- ЛКМ включает Crosshair; ПКМ назначает K. Назначение и включённое состояние
-  восстановились после перезапуска клиента, Keybinds показывает реальную клавишу.
-- Редактор показывает голову игрока и HP, иконки эффектов, образцы предметов
-  и брони без фона, watermark, BoyKisser и список активных модулей.
-- Target HUD перетащен: `x=0.71171874`, `y=0.66944444`; колесо сохранило
-  `scale=1.05`. Ctrl+Z отменил последующее смещение с сохранением масштаба.
-- В чате watermark перетащен на `x=0.21015625`, `y=0.1736111`.
-  После полного перезапуска восстановилось это положение; запись watermark
-  без поля `scale` прочитана со значением 1. Target HUD восстановился с масштабом 1.05.
-- ПКМ сбросил обе панели: их записи удалены из `hud.json`.
-- Изменение окна 1280×720 → 1024×576: HUD остаётся в границах окна,
-  размер текста и предметов сохраняется, относительные позиции пересчитаны.
-- GUI scale 3: HUD и ClickGui отображаются и принимают клики. ArrowRight
-  изменил x с `0.553125` на `0.55390567`, то есть ровно на 1 физический пиксель.
-  Проверено после исправления целочисленного деления в расчёте масштаба.
-- Выдан настоящий Fire Resistance: отдельная карточка с правильной иконкой
-  и убывающим таймером; ванильный список эффектов скрыт.
-- Шестерёнка открывает окно оформления поверх GUI. Выключение анимаций
-  сохранилось в `appearance.json`, Esc вернул в меню.
-- Модели → Blood Axe Mace → Применить: 3D preview работает, кнопка показывает
-  «Применено», выбор сохранён. В логе `948 faces, no resource reload`.
+3. Проверь:
+   - в логе `Runtime model ready: … (N faces, no resource reload)` для каждой модели;
+   - Предметы → Алмазный меч → QA OBJ Sword → Применить: меч в руке и в
+     хотбаре, грани видны снаружи, цвета квадрантов на своих местах, гарда оранжевая;
+   - палка → QA GLB Cube: куб с текстурой под углом в хотбаре;
+   - Своя модель → QA OBJ Player, F5: модель стоит ногами на земле;
+   - Применённые: счётчик и список совпадают с применённым, встроенный
+     персонаж не считается, пока его не выбрали явно;
+   - язык Minecraft English / Русский: меню и HUD переводятся целиком;
+   - старые `hud.json` с `boykisser` и `changer.json` с `builtin-boykisser`
+     подхватываются как `mascot`.
 
-![ClickGui](screenshots/astolfo-gui-final.png)
+Для автоматического управления окном использованы Xvfb и `xdotool`; клики
+через Minecraft Mod MCP в этой среде GUI не управляют, но скриншоты работают
+(`./scripts/setup-mcp.sh`).
 
-![Оформление](screenshots/astolfo-appearance.png)
+## Последняя проверка — 2026-10-12
 
-![Восстановленный Target HUD с масштабом 1.05](screenshots/astolfo-editor-restored.png)
+Minecraft 26.2, Fabric Loader 0.19.5, Fabric API 0.161.0+26.2, OpenJDK 25,
+Linux/Xvfb/llvmpipe, тестовый каталог из `scripts/qa-catalog.py`.
 
-![HUD в окне 1024×576](screenshots/astolfo-small.png)
+- `./gradlew build`: успешно, 286 тестов, 0 падений.
+- JAR содержит `lwjgl-assimp` 3.4.1 с нативами Linux x64, Windows x64,
+  macOS x64/arm64, около 16.7 MB.
+- Все сценарии выше пройдены. Шрифты и кадры персонажа загружаются из новых
+  путей `ui/` и `mascot/`.
 
-![HUD при GUI scale 3](screenshots/astolfo-scale3-hud.png)
+![Модели предмета (ru)](screenshots/menu-item-ru.png)
 
-![Выбор модели](screenshots/astolfo-models.png)
+![Применённые (ru)](screenshots/menu-applied-ru.png)
 
-Ограничения: multiplayer и отдельные сценарии урона/поглощения не проверялись.
-В llvmpipe клиент работал примерно с 4–5 FPS, поэтому плавность анимаций на GPU
-этой средой не подтверждается. В логах есть прежние ошибки OpenAL, flite,
-Realms/authentication и Xvfb cursor; завершение окна X11 даёт ненулевой exit code.
-Ошибок загрузки HUD-ресурсов, GUI shaders или обработки ввода не обнаружено.
+![HUD (en)](screenshots/menu-hud-en.png)
 
-## Сборка и состав JAR
+![Настройки (en)](screenshots/menu-settings-en.png)
 
-- `./gradlew build --no-daemon`: успешно. Автоматических unit tests в моде нет (`test NO-SOURCE`).
-- Проверен состав `ModelMirage-0.3.0.jar`: GUI shaders/fonts, HUD, модельный загрузчик и notices включены.
-- Остались четыре HUD-модуля: Crosshair, Interface, NoRender (только scoreboard/boss bar), BoyKisser.
-- Mixins: три исходных для runtime-моделей и KeyboardVisualMixin для клавиш HUD.
-- Удалены world/player/effect renderers, шейдеры рук и предметов, связанные mixins и ресурсы.
-- MusicService, music-bridge, MediaPlayerInfo и вложенных библиотек в релизе нет.
-- Blood Axe Mace JSON/PNG загружаются из каталога и не включены в JAR.
-- `git diff --check`: успешно.
+![OBJ-меч в руке и GLB-куб в хотбаре](screenshots/world-3d-models.png)
 
-## Проверка в Minecraft
-
-Скриншоты сделаны установленным Minecraft Mod MCP 0.4.1 через
-`screenshot_to_file`. Его input hook не управляет GUI; нажатия и клики
-выполнялись через `xdotool` в отдельном тестовом клиенте.
-
-| Сценарий | Результат |
-| --- | --- |
-| Right Shift | Открывается нативное меню с разделами Модели / Применённые / HUD |
-| Blood Axe Mace на diamond sword | Выбор и preview восстановлены, модель отображается в руке и hotbar |
-| Сброс / Применить в новом меню | Запись для diamond sword удаляется и восстанавливается; подмена mace сохраняется |
-| Runtime loader | В логе 948 faces, без нового resource reload |
-| HUD → модуль → переключатели панелей | Состояния меняются, настройки автоматически сохраняются |
-| Панели в мире | Реальные FPS/ping, координаты, инвентарь, броня и список активных модулей |
-| Редактор HUD | Панели выбираются и перетаскиваются; положение записано в hud.json |
-| Esc из редактора HUD | Возврат в прежнее меню |
-| Оформление → анимации, масштаб | Значения меняются, записаны в appearance.json; Esc возвращает в меню |
-| Полный перезапуск клиента | HUD-настройки и подмена модели восстановлены |
-
-![Выбор модели](screenshots/model-selector.png)
-
-![HUD](screenshots/hud.png)
-
-## Ограничения проверки
-
-В этой проверке не создавались отдельные multiplayer-серверы. Boss bar /
-scoreboard suppression и параметры прицела проверены сборкой и подключением
-Fabric HUD registry, без отдельных игровых сценариев. Проверки загрузчика
-каталога (checksum, generated items, offline fallback, F3+T) выполнены при
-подготовке 0.2.0; его код в 0.3.0 не менялся.
-
-При закрытии тестового клиента Minecraft Mod MCP 0.4.1 оставляет
-HTTP-Dispatcher и pool threads; shutdown watchdog создаёт crash report.
-В его JAR обнаружен McpHttpServer, использующий JDK HttpServer; связь
-зависания с MCP следует из оставшихся потоков. MCP не входит в релиз.
-Предупреждения Realms/authentication, OpenAL/flite и Xvfb cursor относятся
-к среде разработки. Серый overlay в верхнем углу создаёт dev-мод MCP.
-
-## Повторная проверка агентом
-
-1. `./scripts/setup-mcp.sh` и `./gradlew runClient`.
-2. Открыть отдельный тестовый мир с cheats, выдать `mace` и `diamond_sword`.
-3. Right Shift → Модели → выбрать предмет → Blood Axe Mace → preview → Применить / Сброс.
-4. HUD → Панели HUD → включить панели; открыть Редактор HUD, перетащить панель и нажать Esc.
-5. Проверить Оформление, сохранение и восстановление после перезапуска.
-6. Сделать MCP screenshots, проверить `run/logs/latest.log` и отсутствие resource reload при выборе модели.
+Не проверялось: реальные FBX и `.blend` в игре (покрыт только разбор
+Assimp-ом), живой мультиплеер с другим игроком, macOS и Windows, плавность на
+настоящей видеокарте — llvmpipe даёт 30–80 FPS. В логах остаются ошибки
+окружения (OpenAL, Realms, ключи профиля), не связанные с модом.
