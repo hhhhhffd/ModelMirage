@@ -163,7 +163,7 @@ public final class ModelMirageScreen extends Screen {
 			} else {
 				List<ModelTile> tiles = new ArrayList<>();
 				for (CatalogModel entry : catalog) {
-					if (entry.kind() != page.kind || selectedItem != null && !entry.accepts(itemId(selectedItem))) continue;
+					if (!fits(entry)) continue;
 					if (!(entry.name() + " " + entry.id() + " " + ModelTile.groupName(entry)).toLowerCase(Locale.ROOT).contains(query)) continue;
 					ModelTile tile = new ModelTile(entry, () -> selectModel(entry));
 					tile.selected = () -> entry.equals(selectedModel);
@@ -319,9 +319,14 @@ public final class ModelMirageScreen extends Screen {
 
 	private void restoreSelectedModel() {
 		Identifier id = page.loadout() ? appliedId() : null;
-		selectedModel = catalog.stream().filter(entry -> entry.kind() == page.kind && entry.modelId().equals(id)).findFirst().orElse(null);
+		selectedModel = catalog.stream().filter(entry -> fits(entry) && entry.modelId().equals(id)).findFirst().orElse(null);
 		failed = downloading = false;
 		if (selectedModel != null && CatalogService.supports(selectedModel)) selectModel(selectedModel);
+	}
+
+	/** Whether the open page and item can use the model; the grid lists only these, and only these can be applied. */
+	private boolean fits(CatalogModel model) {
+		return model.kind() == page.kind && (selectedItem == null || model.accepts(itemId(selectedItem)));
 	}
 
 	private void selectModel(CatalogModel model) {
@@ -339,7 +344,8 @@ public final class ModelMirageScreen extends Screen {
 	}
 
 	private void applyOrRetry() {
-		if (selectedModel == null) return;
+		// A refresh may have changed the entry's kind or items since it was selected.
+		if (selectedModel == null || !fits(selectedModel)) return;
 		if (failed) { CatalogService.retry(selectedModel); selectModel(selectedModel); return; }
 		if (!CatalogService.isLoaded(selectedModel)) return;
 		try {
@@ -380,7 +386,7 @@ public final class ModelMirageScreen extends Screen {
 			catalog = CatalogService.models();
 			if (selectedModel != null) {
 				CatalogModel next = catalog.stream().filter(entry -> entry.id().equals(selectedModel.id())).findFirst().orElse(null);
-				if (next == null) { selectedModel = null; failed = downloading = false; }
+				if (next == null || !fits(next)) { selectedModel = null; failed = downloading = false; }
 				else if (!next.equals(selectedModel)) selectModel(next);
 			} else restoreSelectedModel();
 			rebuild();
