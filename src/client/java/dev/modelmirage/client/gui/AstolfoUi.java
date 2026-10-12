@@ -20,16 +20,8 @@ import org.joml.Matrix3x2f;
 
 /** Layout palette, animation and font assets adapted from AstolfoVisuals ClickGuiScreen/GuiUtils. */
 public final class AstolfoUi {
-	public static final int BACKGROUND = 0xFF000000;
-	public static final int SIDEBAR = 0xFF000000;
-	public static final int PANEL = 0xFF060608;
-	public static final int CARD = 0xFF060608;
-	public static final int HOVER = 0xFF0A0A0E;
 	public static final int TEXT = 0xFFFFFFFF;
-	public static final int MUTED = 0xFFA0A0A5;
 	public static volatile int ACCENT = 0xFF80D6ED;
-	public static final int SELECTED = 0xFF1C2F34;
-	public static final int LINE = 0xFF16161C;
 	public static float alpha = 1;
 	public static final Face SEMIBOLD = new Face("semibold");
 	public static final Face BOLD = new Face("bold");
@@ -99,14 +91,6 @@ public final class AstolfoUi {
 			int tint = opacity(color, strength * (1 - progress) * (1 - progress));
 			shape(graphics, cx - r, cy - r, r * 2, r * 2, r, 0, tint, tint);
 		}
-	}
-
-	public static void rounded(GuiGraphicsExtractor graphics, int x, int y, int width, int height, int radius, int color) {
-		shape(graphics, x, y, width, height, radius, 0, color, color);
-	}
-
-	public static void border(GuiGraphicsExtractor graphics, int x, int y, int width, int height, int radius, int color) {
-		shape(graphics, x, y, width, height, radius, 1, color, color);
 	}
 
 	public static void shape(GuiGraphicsExtractor graphics, float x, float y, float width, float height,

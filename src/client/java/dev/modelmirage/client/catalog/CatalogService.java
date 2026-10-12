@@ -49,6 +49,8 @@ public final class CatalogService {
 			Thread.ofPlatform().daemon().name("ModelMirage-loader-", 0).factory());
 	private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10))
 			.followRedirects(HttpClient.Redirect.NEVER).build();
+	private static final String USER_AGENT = "ModelMirage/" + FabricLoader.getInstance().getModContainer("modelmirage")
+			.map(mod -> mod.getMetadata().getVersion().getFriendlyString()).orElse("dev");
 	private static final URI SOURCE = URI.create(System.getProperty("modelmirage.catalogUrl", DEFAULT_SOURCE));
 	private static final Map<CatalogModel, CompletableFuture<Void>> DOWNLOADS = new ConcurrentHashMap<>();
 	private static final Map<Identifier, CatalogModel> LOADED = new ConcurrentHashMap<>();
@@ -218,7 +220,7 @@ public final class CatalogService {
 		if (!"https".equals(url.getScheme()) && !("http".equals(url.getScheme()) && List.of("localhost", "127.0.0.1", "[::1]").contains(url.getHost()))) {
 			throw new IOException("Catalog requires HTTPS");
 		}
-		HttpRequest request = HttpRequest.newBuilder(url).timeout(Duration.ofSeconds(30)).header("User-Agent", "ModelMirage/0.2").GET().build();
+		HttpRequest request = HttpRequest.newBuilder(url).timeout(Duration.ofSeconds(30)).header("User-Agent", USER_AGENT).GET().build();
 		var response = HTTP.send(request, HttpResponse.BodyHandlers.ofInputStream());
 		try (InputStream stream = response.body()) {
 			if (response.statusCode() != 200) throw new IOException("HTTP " + response.statusCode() + ": " + url);
