@@ -25,7 +25,6 @@ import dev.modelmirage.client.gui.kit.Theme;
 import dev.modelmirage.client.gui.kit.ToggleRow;
 import dev.modelmirage.client.render.MascotAnimations;
 import dev.modelmirage.client.render.RuntimeModels;
-import dev.modelmirage.client.visual.HudEditorScreen;
 import dev.modelmirage.client.visual.VisualModule;
 import dev.modelmirage.client.visual.VisualPreferences;
 import dev.modelmirage.client.visual.Visuals;
@@ -63,7 +62,7 @@ public final class ModelMirageScreen extends Screen {
 	private final ScrollView scroll = new ScrollView(new Columns());
 	private final Inspector inspector = new Inspector();
 	private final SearchField search = new SearchField(Lang.tr("modelmirage.search.placeholder"), value -> { scroll.reset(); rebuild(); });
-	private Button close, editor, refresh;
+	private Button close, refresh;
 	private Crumb crumb;
 	private TileGrid grid;
 	private List<CatalogModel> catalog = List.of();
@@ -88,10 +87,6 @@ public final class ModelMirageScreen extends Screen {
 		navigation.clear();
 		roots.clear();
 		close = new Button("", Button.Style.PLAIN, this::onClose);
-		editor = new Button(Lang.tr("modelmirage.hud.editor"), Button.Style.SECONDARY, this::openEditor);
-		editor.icon = "H";
-		editor.height = 22;
-		editor.textSize = Theme.CAPTION + 0.5f;
 		refresh = new Button("", Button.Style.PLAIN, this::refreshCatalog);
 		refresh.height = 22;
 		crumb = new Crumb();
@@ -106,12 +101,11 @@ public final class ModelMirageScreen extends Screen {
 		roots.add(scroll);
 		roots.add(inspector);
 		roots.add(search);
-		roots.add(editor);
 		roots.add(refresh);
 		roots.add(crumb);
 		roots.add(close);
 		catalog = CatalogService.models();
-		// init() also runs on resize and when returning from the HUD editor: keep an unapplied selection.
+		// init() also runs on resize: keep an unapplied selection.
 		if (selectedModel == null) restoreSelectedModel();
 		rebuild();
 	}
@@ -127,11 +121,6 @@ public final class ModelMirageScreen extends Screen {
 		scroll.reset();
 		restoreSelectedModel();
 		rebuild();
-	}
-
-	private void openEditor() {
-		save();
-		if (!dirty) minecraft.gui.setScreen(new HudEditorScreen(this));
 	}
 
 	private void refreshCatalog() {
@@ -187,23 +176,16 @@ public final class ModelMirageScreen extends Screen {
 		Columns columns = new Columns();
 		switch (page) {
 			case HUD -> {
-				// Scale, glass and the global switch live in Settings; this page holds the panels only.
+				// Scale, glass and the global switch live in Settings; this page holds the panels and the crosshair.
 				int index = 0;
 				for (VisualModule module : Visuals.modules()) {
-					if (!module.isPanel() || !matches(module, query)) continue;
+					if (!(module.isPanel() || module.id.equals("Crosshair")) || !matches(module, query)) continue;
 					Group group = Settings.module(module, this::changed);
 					// Both columns start with a caption line so their first cards line up.
 					if (index == 0) group.caption("G", Lang.tr("modelmirage.caption.panels"));
 					else if (index == 1) group.caption("", " ");
 					index++;
 					columns.children.add(group);
-				}
-			}
-			case SCREEN -> {
-				for (VisualModule module : Visuals.modules()) {
-					if (!module.category.equals("hud") || module.id.equals("Interface") || !matches(module, query)) continue;
-					// Every card is captioned so the two columns start on the same line.
-					columns.children.add(Settings.module(module, this::changed).caption("F", module.id.equals("Crosshair") ? Lang.tr("modelmirage.module.Crosshair") : Lang.tr("modelmirage.caption.game_interface")));
 				}
 			}
 			case APPLIED -> buildApplied(columns, query);
@@ -255,7 +237,8 @@ public final class ModelMirageScreen extends Screen {
 				.toggle(() -> VisualPreferences.hudEnabled, value -> { VisualPreferences.hudEnabled = value; preferencesChanged(); });
 		hud.add(new SliderRow(Lang.tr("modelmirage.settings.hud_scale"), 0.5, 1.5, 0.05, "x", () -> VisualPreferences.hudScale, value -> { VisualPreferences.hudScale = (float) value; preferencesChanged(); }));
 		hud.add(new ToggleRow(Lang.tr("modelmirage.settings.accent_icons"), () -> VisualPreferences.accentIcons, value -> { VisualPreferences.accentIcons = value; preferencesChanged(); }));
-		hud.add(new ButtonRow(Lang.tr("modelmirage.hud.panel_layout"), Lang.tr("modelmirage.action.open"), this::openEditor));
+		hud.add(new ToggleRow(Lang.tr("modelmirage.settings.hud_grid"), () -> VisualPreferences.hudGrid, value -> { VisualPreferences.hudGrid = value; preferencesChanged(); }));
+		hud.add(new InfoRow(Lang.tr("modelmirage.hud.panel_layout"), () -> Lang.tr("modelmirage.settings.hud_layout_hint")));
 		// One glass for the menu and every HUD panel; a panel can switch to its own in its card.
 		Group glass = new Group().caption("F", Lang.tr("modelmirage.settings.glass")).title(Lang.tr("modelmirage.settings.glass_title"));
 		glass.add(new SliderRow(Lang.tr("modelmirage.settings.blur"), 0, 30, 1, "px", () -> VisualPreferences.blur, value -> { VisualPreferences.blur = (float) value; preferencesChanged(); }));
@@ -507,12 +490,6 @@ public final class ModelMirageScreen extends Screen {
 		graphics.pose().popMatrix();
 		search.layout(W - PAD - 30 - 168, 15, 168);
 		search.render(surface);
-		editor.visible = page == Page.HUD;
-		if (editor.visible) {
-			float w = editor.preferredWidth();
-			editor.layout(search.x - w - 8, 15, w);
-			editor.render(surface);
-		}
 		MirageUi.shape(graphics, SIDE + 12, TOP, W - SIDE - 24, 0.6f, 0, 0, Theme.SEPARATOR, Theme.SEPARATOR);
 	}
 
@@ -608,7 +585,7 @@ public final class ModelMirageScreen extends Screen {
 
 	@Override
 	public void removed() {
-		// Also reached when another screen replaces the menu without onClose (HUD editor, disconnect).
+		// Also reached when another screen replaces the menu without onClose (disconnect).
 		if (preferencesDirty) savePreferences();
 		if (dirty) save();
 	}
@@ -680,7 +657,6 @@ public final class ModelMirageScreen extends Screen {
 		OTHERS("L", Section.LOADOUT, CatalogModel.Kind.PLAYER, CosmeticSelections.Slot.OTHERS),
 		MASCOTS("K", Section.LOADOUT, CatalogModel.Kind.MASCOT, CosmeticSelections.Slot.MASCOT),
 		HUD("G", Section.VISUALS, null, null),
-		SCREEN("F", Section.VISUALS, null, null),
 		APPLIED("D", Section.SYSTEM, null, null),
 		SETTINGS("J", Section.SYSTEM, null, null);
 		final String icon;
@@ -698,7 +674,6 @@ public final class ModelMirageScreen extends Screen {
 				case OTHERS -> Lang.tr("modelmirage.page.others");
 				case MASCOTS -> Lang.tr("modelmirage.page.mascots");
 				case HUD -> Lang.tr("modelmirage.page.hud");
-				case SCREEN -> Lang.tr("modelmirage.page.screen");
 				case APPLIED -> Lang.tr("modelmirage.page.applied");
 				case SETTINGS -> Lang.tr("modelmirage.page.settings");
 			};
@@ -833,8 +808,7 @@ public final class ModelMirageScreen extends Screen {
 		private final Button reset = new Button(Lang.tr("modelmirage.inspector.reset"), Button.Style.SECONDARY, ModelMirageScreen.this::resetSelection);
 		private final Group mascot = new Group()
 				.add(new ToggleRow(Lang.tr("modelmirage.inspector.show_in_hud"), () -> Visuals.enabled("Mascot"), value -> { Visuals.module("Mascot").enabled = value; changed(); }))
-				.add(new KeyRow(Lang.tr("modelmirage.row.key"), () -> Visuals.module("Mascot").bind, key -> { Visuals.module("Mascot").bind = key; changed(); }))
-				.add(new ButtonRow(Lang.tr("modelmirage.inspector.layout"), Lang.tr("modelmirage.action.change"), ModelMirageScreen.this::openEditor));
+				.add(new KeyRow(Lang.tr("modelmirage.row.key"), () -> Visuals.module("Mascot").bind, key -> { Visuals.module("Mascot").bind = key; changed(); }));
 		private boolean rotating;
 		private float previewTop, previewHeight;
 

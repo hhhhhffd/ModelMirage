@@ -34,7 +34,7 @@ public class ModelMirageClient implements ClientModInitializer {
 		VisualHud.register();
 		ScreenEvents.AFTER_INIT.register((client, screen, width, height) -> {
 			if (!(screen instanceof ChatScreen)) return;
-			HudInteraction interaction = new HudInteraction(false);
+			HudInteraction interaction = new HudInteraction();
 			ScreenMouseEvents.allowMouseClick(screen).register((current, event) -> !interaction.click(event, false, current.width, current.height));
 			ScreenMouseEvents.allowMouseDrag(screen).register((current, event, dx, dy) -> !interaction.drag(event, current.width, current.height));
 			ScreenMouseEvents.allowMouseRelease(screen).register((current, event) -> !interaction.release(event));
@@ -42,7 +42,7 @@ public class ModelMirageClient implements ClientModInitializer {
 			// Esc and key binding presses belong to the popover while it is open, so the chat must not see them.
 			ScreenKeyboardEvents.allowKeyPress(screen).register((current, event) -> !interaction.popoverKey(event));
 			ScreenKeyboardEvents.allowCharType(screen).register((current, event) -> !interaction.popoverOpen());
-			ScreenEvents.afterExtract(screen).register((current, graphics, mouseX, mouseY, delta) -> interaction.draw(graphics, mouseX, mouseY, false));
+			ScreenEvents.afterExtract(screen).register((current, graphics, mouseX, mouseY, delta) -> interaction.draw(graphics, mouseX, mouseY));
 			ScreenEvents.remove(screen).register(current -> interaction.save());
 		});
 		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {

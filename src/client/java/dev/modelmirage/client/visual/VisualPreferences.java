@@ -22,6 +22,8 @@ public final class VisualPreferences {
 	public static boolean hudEnabled = true;
 	public static float hudScale = 0.65f;
 	public static boolean accentIcons = true;
+	/** Snap grid drawn while the chat is open; off by default. */
+	public static boolean hudGrid;
 	private VisualPreferences() { }
 	public static void load() {
 		if (!Files.exists(CONFIG)) return;
@@ -37,6 +39,7 @@ public final class VisualPreferences {
 			if (data.has("hudEnabled")) hudEnabled = data.get("hudEnabled").getAsBoolean();
 			if (data.has("hudScale")) hudScale = bounded(data.get("hudScale").getAsFloat(), 0.5f, 1.5f);
 			if (data.has("accentIcons")) accentIcons = data.get("accentIcons").getAsBoolean();
+			if (data.has("hudGrid")) hudGrid = data.get("hudGrid").getAsBoolean();
 		} catch (IOException | RuntimeException failure) { LoggerFactory.getLogger("ModelMirage").error("Could not restore appearance settings", failure); }
 	}
 	private static float bounded(float value, float min, float max) {
@@ -47,7 +50,7 @@ public final class VisualPreferences {
 		JsonObject data = new JsonObject();
 		data.addProperty("accent", MirageUi.ACCENT); data.addProperty("scale", guiScale); data.addProperty("opacity", opacity);
 		data.addProperty("animations", animations); data.addProperty("blur", blur); data.addProperty("tint", tint);
-		data.addProperty("hudEnabled", hudEnabled); data.addProperty("hudScale", hudScale); data.addProperty("accentIcons", accentIcons);
+		data.addProperty("hudEnabled", hudEnabled); data.addProperty("hudScale", hudScale); data.addProperty("accentIcons", accentIcons); data.addProperty("hudGrid", hudGrid);
 		Files.createDirectories(CONFIG.getParent());
 		Path temporary = Files.createTempFile(CONFIG.getParent(), "appearance-", ".tmp");
 		try { Files.writeString(temporary, data.toString()); Files.move(temporary, CONFIG, StandardCopyOption.REPLACE_EXISTING); }

@@ -427,59 +427,6 @@
     ]
   },
   {
-    "id": "ArrayList",
-    "category": "panel",
-    "enabled": true,
-    "settings": [
-      {
-        "id": "style",
-        "type": "choice",
-        "value": "glass",
-        "options": [
-          {
-            "id": "glass"
-          },
-          {
-            "id": "solid"
-          },
-          {
-            "id": "none"
-          }
-        ]
-      },
-      {
-        "id": "customGlass",
-        "type": "boolean",
-        "value": false
-      },
-      {
-        "id": "blur",
-        "type": "number",
-        "value": 16,
-        "min": 0,
-        "max": 30,
-        "step": 1,
-        "unit": "px",
-        "when": "customGlass"
-      },
-      {
-        "id": "tint",
-        "type": "number",
-        "value": 35,
-        "min": 0,
-        "max": 90,
-        "step": 5,
-        "unit": "%",
-        "when": "customGlass"
-      },
-      {
-        "id": "shadow",
-        "type": "boolean",
-        "value": true
-      }
-    ]
-  },
-  {
     "id": "Keybinds",
     "category": "panel",
     "enabled": true,
@@ -574,22 +521,6 @@
         "id": "color",
         "type": "color",
         "value": -1
-      }
-    ]
-  },
-  {
-    "id": "NoRender",
-    "category": "hud",
-    "settings": [
-      {
-        "id": "scoreboard",
-        "type": "boolean",
-        "value": false
-      },
-      {
-        "id": "bossbar",
-        "type": "boolean",
-        "value": false
       }
     ]
   },

@@ -9,7 +9,6 @@ import dev.modelmirage.client.render.MascotAnimations;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -66,12 +65,6 @@ public final class VisualHud {
 		HudElementRegistry.replaceElement(VanillaHudElements.CROSSHAIR, original -> (graphics, delta) -> {
 			if (!active("Crosshair")) original.extractRenderState(graphics, delta);
 		});
-		HudElementRegistry.replaceElement(VanillaHudElements.BOSS_BAR, original -> (graphics, delta) -> {
-			if (!active("NoRender") || !Visuals.module("NoRender").bool("bossbar")) original.extractRenderState(graphics, delta);
-		});
-		HudElementRegistry.replaceElement(VanillaHudElements.SCOREBOARD, original -> (graphics, delta) -> {
-			if (!active("NoRender") || !Visuals.module("NoRender").bool("scoreboard")) original.extractRenderState(graphics, delta);
-		});
 		HudElementRegistry.replaceElement(VanillaHudElements.MOB_EFFECTS, original -> (graphics, delta) -> {
 			if (!active("Effects")) original.extractRenderState(graphics, delta);
 		});
@@ -111,13 +104,13 @@ public final class VisualHud {
 
 	private static void extract(GuiGraphicsExtractor graphics, DeltaTracker delta) {
 		Minecraft client = Minecraft.getInstance();
-		if (client.player == null || !VisualPreferences.hudEnabled || client.gui.hud.isHidden() || client.gui.screen() instanceof dev.modelmirage.client.ModelMirageScreen
-				|| client.gui.screen() instanceof HudEditorScreen) {
+		if (client.player == null || !VisualPreferences.hudEnabled || client.gui.hud.isHidden() || client.gui.screen() instanceof dev.modelmirage.client.ModelMirageScreen) {
 			// Hidden panels must not keep stale hit boxes for chat dragging.
 			PANELS.clear();
 			return;
 		}
-		render(graphics, false);
+		// The open chat is the layout editor: every panel shows, with samples and disabled ones dimmed.
+		render(graphics, client.gui.screen() instanceof ChatScreen);
 	}
 
 	public static void render(GuiGraphicsExtractor graphics, boolean editor) {
@@ -129,7 +122,7 @@ public final class VisualHud {
 		frame = now;
 		// Upstream fixes the physical size independently of Minecraft's GUI scale.
 		hudScale = (float) (2f / client.getWindow().getGuiScale()) * VisualPreferences.hudScale;
-		chatOpen = !editor && client.gui.screen() instanceof ChatScreen;
+		chatOpen = client.gui.screen() instanceof ChatScreen;
 		graphics.pose().pushMatrix();
 		graphics.pose().scale(hudScale, hudScale);
 		int width = Math.round(graphics.guiWidth() / hudScale);
@@ -140,7 +133,6 @@ public final class VisualHud {
 		effects(graphics, editor, height);
 		inventory(graphics, editor, width, height);
 		armor(graphics, editor, width, height);
-		moduleList(graphics, editor, width);
 		binds(graphics, editor, width, height);
 		if (active("Crosshair") && !editor) crosshair(graphics);
 		mascot(graphics, editor);
@@ -199,7 +191,7 @@ public final class VisualHud {
 		return panel;
 	}
 
-	/** Disabled panels stay visible, dimmed, in the editor so they can still be configured. */
+	/** Disabled panels stay visible, dimmed, in the chat editor so they can still be configured. */
 	private static float fade(VisualModule module, boolean editor) { return editor && !module.enabled ? 0.35f : 1; }
 
 	private static void background(GuiGraphicsExtractor graphics, VisualModule module, float x, float y, float width, float height, float radius) {
@@ -212,7 +204,7 @@ public final class VisualHud {
 		float tint = own ? module.number("tint") : VisualPreferences.tint;
 		if (style.equals("glass")) MirageUi.glass(graphics, x, y, width, height, radius, blur, Math.round(tint / 100 * 255) << 24 | 0x0C0C10);
 		else MirageUi.shape(graphics, x, y, width, height, radius, 0, 0xE6121216, 0xE60C0C10);
-		MirageUi.shape(graphics, x, y, width, height, radius, 0.8f, 0x1FFFFFFF, 0x08FFFFFF);
+		MirageUi.shape(graphics, x, y, width, height, radius, MirageUi.hairline(graphics), 0x1FFFFFFF, 0x08FFFFFF);
 	}
 
 	private static void end(GuiGraphicsExtractor graphics) { MirageUi.alpha = 1; graphics.pose().popMatrix(); }
@@ -500,43 +492,6 @@ public final class VisualHud {
 				if (vertical) MirageUi.SEMIBOLD.draw(graphics, text, x + 19, Paint.centeredTextY(y, 16, 6.5f), 6.5f, color);
 				else MirageUi.SEMIBOLD.draw(graphics, text, x + 8 - MirageUi.SEMIBOLD.width(text, 6) / 2, y + 17, 6, color);
 			}
-		}
-		end(graphics);
-	}
-
-	private static void moduleList(GuiGraphicsExtractor graphics, boolean editor, int width) {
-		VisualModule panelModule = Visuals.module("ArrayList");
-		List<VisualModule> modules = Visuals.modules().stream().filter(module -> !module.isPanel() && !module.category.equals("mascot"))
-				.sorted(Comparator.comparingDouble((VisualModule module) -> MirageUi.SEMIBOLD.width(module.name(), 7.5f)).reversed()).toList();
-		float w = 60;
-		float h = 0;
-		for (var module : modules) {
-			Motion row = motion("module:" + module.id);
-			row.alpha = editor ? (module.enabled ? 1 : 0) : MirageUi.animate(row.alpha, module.enabled ? 1 : 0, 14, seconds);
-			row.height = MirageUi.animate(row.height, row.alpha < 0.1f ? 0 : 22, 14, seconds);
-			if (row.alpha >= 0.005f) w = Math.max(w, MirageUi.SEMIBOLD.width(module.name(), 7.5f) + 29);
-			h += row.height;
-		}
-		boolean empty = editor && h < 1;
-		Panel panel = begin(graphics, "modules", "ArrayList", width - (empty ? 130 : w) - 15, 40, empty ? 130 : w, empty ? 18 : Math.max(18, h - 4), on("ArrayList", editor) && (editor || h > 1), false, editor);
-		if (panel == null) return;
-		if (empty) {
-			background(graphics, panelModule, panel.x(), panel.y(), panel.width(), panel.height(), 7);
-			MirageUi.MEDIUM.draw(graphics, Lang.tr("modelmirage.hud.no_modules"), panel.x() + 10, Paint.centeredTextY(panel.y(), panel.height(), 7.5f), 7.5f, Theme.TEXT_TERTIARY);
-		}
-		float alpha = MirageUi.alpha;
-		float y = panel.y();
-		for (var module : modules) {
-			Motion row = motion("module:" + module.id);
-			if (row.alpha >= 0.005f) {
-				MirageUi.alpha = alpha * row.alpha;
-				float rowWidth = MirageUi.SEMIBOLD.width(module.name(), 7.5f) + 29;
-				float x = panel.x() + panel.width() - rowWidth + (1 - row.alpha) * 10;
-				background(graphics, panelModule, x, y, rowWidth, 18, 7);
-				icon(graphics, MirageUi.LOGO, "A", x + 6, y + 4, 10);
-				MirageUi.SEMIBOLD.draw(graphics, module.name(), x + 21, Paint.centeredTextY(y, 18, 7.5f), 7.5f, Theme.TEXT);
-			}
-			y += row.height;
 		}
 		end(graphics);
 	}

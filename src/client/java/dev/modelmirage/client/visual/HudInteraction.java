@@ -5,9 +5,11 @@ import com.mojang.blaze3d.platform.InputConstants;
 import dev.modelmirage.client.Lang;
 import dev.modelmirage.client.gui.MirageUi;
 import dev.modelmirage.client.gui.kit.ButtonRow;
+import dev.modelmirage.client.gui.kit.Group;
 import dev.modelmirage.client.gui.kit.Settings;
 import dev.modelmirage.client.gui.kit.Surface;
 import dev.modelmirage.client.gui.kit.Theme;
+import dev.modelmirage.client.gui.kit.ToggleRow;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -21,11 +23,15 @@ import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import org.slf4j.LoggerFactory;
 
-/** The editor and chat use the same hit boxes, snapping and persistence. */
+/** Layout editing while the chat is open: dragging, snapping, element switches, panel settings and persistence. */
 public final class HudInteraction {
-	/** GUI pixels: distance kept from the window edges, gap between neighbours, snap reach and editor grid step. */
+	/** GUI pixels: distance kept from the window edges, gap between neighbours, snap reach and grid step. */
 	static final float MARGIN = 4, GAP = 4, SNAP = 5, GRID = 8;
-	private final boolean editor;
+	/** Every HUD element with only its on/off switch; settings stay in the right-click popover. */
+	private final Group elements = new Group().title(Lang.tr("modelmirage.hud.editor.elements"));
+	private final Surface listSurface = new Surface();
+	private final String legend = Lang.tr("modelmirage.hud.editor.legend");
+	private float listScale = 1;
 	private final Deque<Map<String, HudLayout.Position>> history = new ArrayDeque<>();
 	/** Watermark element under the press; it is reordered once the drag goes sideways. */
 	private String pendingChip;
@@ -45,9 +51,16 @@ public final class HudInteraction {
 	private Surface surface = new Surface();
 	private HudPopover popover;
 
-	public HudInteraction(boolean editor) { this.editor = editor; }
+	public HudInteraction() {
+		for (VisualModule module : Visuals.modules()) {
+			if (!module.isPanel() && !module.category.equals("mascot") && !module.id.equals("Crosshair")) continue;
+			elements.add(new ToggleRow(module.name(), () -> module.enabled, value -> { module.enabled = value; settingsChanged(); }));
+		}
+	}
 
 	public boolean click(MouseButtonEvent event, boolean doubleClick, int width, int height) {
+		double listX = event.x() / listScale, listY = event.y() / listScale;
+		if (popover == null && elements.contains(listX, listY)) { listSurface.mouseClicked(List.of(elements), listX, listY, event.button()); return true; }
 		if (popover != null) {
 			pointer(event.x(), event.y());
 			// A dropdown inside the popover is the surface's popup: it takes the click (and closes on an outside one).
@@ -97,10 +110,10 @@ public final class HudInteraction {
 				.map(other -> new float[] {other.screenX(), other.screenWidth()}).toArray(float[][]::new);
 		float[][] rows = VisualHud.panels().stream().filter(other -> !other.id().equals(selected))
 				.map(other -> new float[] {other.screenY(), other.screenHeight()}).toArray(float[][]::new);
-		// Shift places freely; otherwise edges, centres and neighbours attract, and the editor grid catches the rest.
+		// Shift places freely; otherwise edges, centres and neighbours attract, and the grid (when shown) catches the rest.
 		boolean free = event.hasShiftDown();
-		float[] x = free ? new float[] {(float) event.x() - offsetX, -1} : snapAxis((float) event.x() - offsetX, panel.screenWidth(), width, columns, editor);
-		float[] y = free ? new float[] {(float) event.y() - offsetY, -1} : snapAxis((float) event.y() - offsetY, panel.screenHeight(), height, rows, editor);
+		float[] x = free ? new float[] {(float) event.x() - offsetX, -1} : snapAxis((float) event.x() - offsetX, panel.screenWidth(), width, columns, VisualPreferences.hudGrid);
+		float[] y = free ? new float[] {(float) event.y() - offsetY, -1} : snapAxis((float) event.y() - offsetY, panel.screenHeight(), height, rows, VisualPreferences.hudGrid);
 		guideX = x[1];
 		guideY = y[1];
 		move(panel, x[0], y[0], width, height);
@@ -156,7 +169,7 @@ public final class HudInteraction {
 		// Same mapping as VisualHud.locate: shares of the space between the margins.
 		float freeWidth = width - panelWidth - 2 * MARGIN, freeHeight = height - panelHeight - 2 * MARGIN;
 		// In chat, dropping a panel onto the input line means "bottom of the screen"; it is lifted only while chat is open.
-		if (!editor && y + panelHeight > height - VisualHud.CHAT_INPUT - 0.5f) y = height - panelHeight - MARGIN;
+		if (y + panelHeight > height - VisualHud.CHAT_INPUT - 0.5f) y = height - panelHeight - MARGIN;
 		HudLayout.place(id, freeWidth > 0 ? Math.clamp(x - MARGIN, 0, freeWidth) / freeWidth : 0, freeHeight > 0 ? Math.clamp(y - MARGIN, 0, freeHeight) / freeHeight : 0);
 		dirty = true;
 	}
@@ -264,24 +277,27 @@ public final class HudInteraction {
 		return failure.isEmpty();
 	}
 
-	public void draw(GuiGraphicsExtractor graphics, double mouseX, double mouseY, boolean editor) {
+	public void draw(GuiGraphicsExtractor graphics, double mouseX, double mouseY) {
 		if (settingsDeadline != 0 && System.nanoTime() - settingsDeadline >= 0) save();
-		if (editor) drawGrid(graphics);
+		if (VisualPreferences.hudGrid) drawGrid(graphics);
 		float scale = scale();
+		// Outlines and guides are measured in physical pixels: GUI scale, HUD scale and panel zoom must not thicken them.
+		float px = MirageUi.hairline(graphics);
 		for (var panel : VisualHud.panels()) {
 			boolean active = panel.id().equals(selected);
 			boolean hovered = panel.contains(mouseX, mouseY) && popover == null;
-			if (!editor && !active && !hovered) continue;
 			float x = panel.screenX();
 			float y = panel.screenY();
-			float radius = 8 * panel.scale() * panel.zoom() + 3;
+			float gap = 3 * px * 2;
+			float radius = 8 * panel.scale() * panel.zoom() + gap;
 			int outline = active ? MirageUi.ACCENT : MirageUi.opacity(MirageUi.ACCENT, hovered ? 0.5f : 0.18f);
-			MirageUi.shape(graphics, x - 3, y - 3, panel.screenWidth() + 6, panel.screenHeight() + 6, radius, active ? 1.4f : 1, outline, outline);
+			MirageUi.shape(graphics, x - gap, y - gap, panel.screenWidth() + gap * 2, panel.screenHeight() + gap * 2, radius, (active ? 2 : 1) * px, outline, outline);
 			if (active || hovered) chip(graphics, panel, scale);
 		}
 		int guide = MirageUi.opacity(MirageUi.ACCENT, 0.6f);
-		if (guideX >= 0) graphics.fill(Math.round(guideX), 0, Math.round(guideX) + 1, graphics.guiHeight(), guide);
-		if (guideY >= 0) graphics.fill(0, Math.round(guideY), graphics.guiWidth(), Math.round(guideY) + 1, guide);
+		if (guideX >= 0) MirageUi.shape(graphics, guideX, 0, px, graphics.guiHeight(), 0, 0, guide, guide);
+		if (guideY >= 0) MirageUi.shape(graphics, 0, guideY, graphics.guiWidth(), px, 0, 0, guide, guide);
+		drawElements(graphics, mouseX, mouseY);
 		graphics.pose().pushMatrix();
 		graphics.pose().scale(scale, scale);
 		if (!error.isEmpty()) MirageUi.MEDIUM.draw(graphics, error, 10, 10, 9, Theme.DANGER);
@@ -302,15 +318,38 @@ public final class HudInteraction {
 
 	/** Glass label with the panel name and zoom, above the panel or below it when there is no room. */
 	/** Faint lines every two grid steps, brighter while a panel is dragged, and the window centre lines. */
+	/** Lines every two grid steps, brighter while a panel is dragged, plus the window centre lines; all one pixel wide. */
 	private void drawGrid(GuiGraphicsExtractor graphics) {
-		int width = graphics.guiWidth(), height = graphics.guiHeight();
+		float width = graphics.guiWidth(), height = graphics.guiHeight(), px = MirageUi.hairline(graphics);
 		int line = dragging && !reordering ? 0x1CFFFFFF : 0x0CFFFFFF;
-		int step = Math.round(GRID * 2);
-		for (int x = step; x < width; x += step) graphics.fill(x, 0, x + 1, height, line);
-		for (int y = step; y < height; y += step) graphics.fill(0, y, width, y + 1, line);
+		for (float x = GRID * 2; x < width; x += GRID * 2) MirageUi.shape(graphics, x, 0, px, height, 0, 0, line, line);
+		for (float y = GRID * 2; y < height; y += GRID * 2) MirageUi.shape(graphics, 0, y, width, px, 0, 0, line, line);
 		int centre = MirageUi.opacity(MirageUi.ACCENT, 0.22f);
-		graphics.fill(width / 2, 0, width / 2 + 1, height, centre);
-		graphics.fill(0, height / 2, width, height / 2 + 1, centre);
+		MirageUi.shape(graphics, width / 2, 0, px, height, 0, 0, centre, centre);
+		MirageUi.shape(graphics, 0, height / 2, width, px, 0, 0, centre, centre);
+	}
+
+	/** Element switches on the right, the controls legend above them; clear of the chat in the bottom-left. */
+	private void drawElements(GuiGraphicsExtractor graphics, double mouseX, double mouseY) {
+		listScale = 1.6f / (float) Minecraft.getInstance().getWindow().getGuiScale();
+		float viewWidth = graphics.guiWidth() / listScale, viewHeight = graphics.guiHeight() / listScale;
+		float listWidth = 150;
+		float listHeight = elements.layout(0, 0, listWidth);
+		elements.layout(viewWidth - listWidth - 10, Math.max(40, (viewHeight - listHeight) / 2), listWidth);
+		graphics.pose().pushMatrix();
+		graphics.pose().scale(listScale, listScale);
+		listSurface.begin(graphics, mouseX / listScale, mouseY / listScale);
+		MirageUi.shadow(graphics, elements.x, elements.y, elements.width, elements.height, Theme.RADIUS_CARD);
+		MirageUi.glass(graphics, elements.x, elements.y, elements.width, elements.height, Theme.RADIUS_CARD, VisualPreferences.blur, Theme.POPUP_TINT);
+		elements.render(listSurface);
+		float size = 6.5f, lineHeight = 10;
+		String[] lines = legend.split(" \\| ");
+		float y = elements.y - 8 - lines.length * lineHeight;
+		for (String text : lines) {
+			MirageUi.MEDIUM.draw(graphics, text, elements.x + elements.width - MirageUi.MEDIUM.width(text, size), y, size, Theme.TEXT_SECONDARY);
+			y += lineHeight;
+		}
+		graphics.pose().popMatrix();
 	}
 
 	private void chip(GuiGraphicsExtractor graphics, VisualHud.Panel panel, float scale) {

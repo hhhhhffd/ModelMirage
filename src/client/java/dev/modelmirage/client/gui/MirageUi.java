@@ -75,6 +75,11 @@ public final class MirageUi {
 		return Math.round((color >>> 24) * Math.clamp(amount, 0, 1)) << 24 | color & 0xFFFFFF;
 	}
 
+	/** One physical pixel in the current local units, so strokes stay thin at any GUI, HUD or panel scale. */
+	public static float hairline(GuiGraphicsExtractor graphics) {
+		return 1f / (graphics.pose().m00() * (float) Minecraft.getInstance().getWindow().getGuiScale());
+	}
+
 	public static void shadow(GuiGraphicsExtractor graphics, float x, float y, float width, float height, float radius) {
 		for (int i = 11; i >= 0; i--) {
 			float progress = i / 12f;
