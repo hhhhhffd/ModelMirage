@@ -183,5 +183,7 @@
   "modelmirage.module.NoRender": "Hide elements",
   "modelmirage.module.NoRender.scoreboard": "Scoreboard",
   "modelmirage.module.NoRender.bossbar": "Boss bar",
-  "modelmirage.module.Mascot": "HUD character"
+  "modelmirage.module.Mascot": "HUD character",
+  "modelmirage.size.kb": "%s KB",
+  "modelmirage.size.mb": "%s MB"
 }

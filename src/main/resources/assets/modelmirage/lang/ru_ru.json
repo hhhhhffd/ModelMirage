@@ -183,5 +183,7 @@
   "modelmirage.module.NoRender": "Скрыть элементы",
   "modelmirage.module.NoRender.scoreboard": "Scoreboard",
   "modelmirage.module.NoRender.bossbar": "Boss bar",
-  "modelmirage.module.Mascot": "Персонаж HUD"
+  "modelmirage.module.Mascot": "Персонаж HUD",
+  "modelmirage.size.kb": "%s КБ",
+  "modelmirage.size.mb": "%s МБ"
 }

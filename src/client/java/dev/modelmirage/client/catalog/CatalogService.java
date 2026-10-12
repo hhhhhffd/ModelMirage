@@ -18,6 +18,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -79,6 +80,10 @@ public final class CatalogService {
 	public static boolean cached() { return cached; }
 	public static boolean isLoaded(CatalogModel model) { return model.builtin() || model.equals(LOADED.get(model.modelId())); }
 	public static boolean isLoading(CatalogModel model) { var download = DOWNLOADS.get(model); return download != null && !download.isDone(); }
+	/** All files are on disk, so loading needs no network; previews may load such models on their own. */
+	public static boolean isCached(CatalogModel model) {
+		return model.builtin() || model.assets().stream().allMatch(asset -> CatalogFiles.present(CACHE.resolve("objects/" + asset.sha256()), asset));
+	}
 	public static boolean hasFailed(CatalogModel model) { var download = DOWNLOADS.get(model); return download != null && download.isCompletedExceptionally(); }
 
 	public static synchronized CompletableFuture<Void> refresh() {
@@ -86,13 +91,31 @@ public final class CatalogService {
 		loading = true;
 		error = "";
 		return CompletableFuture.runAsync(() -> {
-			Path indexCache = CACHE.resolve("catalog-" + CatalogFiles.sha256(SOURCE.toString().getBytes(StandardCharsets.UTF_8)) + ".json");
+			String name = "catalog-" + CatalogFiles.sha256(SOURCE.toString().getBytes(StandardCharsets.UTF_8));
+			Path indexCache = CACHE.resolve(name + ".json"), tagCache = CACHE.resolve(name + ".etag");
 			try {
-				byte[] index = fetch(SOURCE, 2 * 1024 * 1024);
-				List<CatalogModel> parsed = CatalogParser.parse(index);
-				CatalogFiles.write(indexCache, index);
+				// An unchanged index answers 304 to its saved ETag, so a launch costs a few hundred bytes, not the index.
+				String tag = Files.exists(indexCache) && Files.exists(tagCache) ? Files.readString(tagCache).strip() : null;
+				Fetched fetched = fetch(SOURCE, 2 * 1024 * 1024, tag);
+				List<CatalogModel> parsed = null;
+				if (fetched.data() == null) {
+					try { parsed = CatalogParser.parse(Files.readAllBytes(indexCache)); }
+					catch (IOException | RuntimeException unreadable) {
+						// A damaged local copy must not be confirmed by 304 forever.
+						LOGGER.warn("Cached catalog index is unreadable, downloading it again: {}", unreadable.toString());
+						fetched = fetch(SOURCE, 2 * 1024 * 1024, null);
+					}
+				}
+				byte[] index = fetched.data();
+				if (parsed == null) parsed = CatalogParser.parse(index);
+				if (fetched.data() != null) {
+					CatalogFiles.write(indexCache, index);
+					if (fetched.tag() != null) CatalogFiles.write(tagCache, fetched.tag().getBytes(StandardCharsets.UTF_8));
+					else Files.deleteIfExists(tagCache);
+				}
 				models = parsed;
 				cached = false;
+				pruneCache(parsed);
 			} catch (Exception onlineError) {
 				try {
 					models = CatalogParser.parse(Files.readAllBytes(indexCache));
@@ -143,26 +166,43 @@ public final class CatalogService {
 		DOWNLOADS.remove(model);
 	}
 
+	/** Old versions and removed entries are dropped once the server has confirmed the current index. */
+	private static void pruneCache(List<CatalogModel> current) {
+		Set<String> keep = new HashSet<>();
+		for (CatalogModel entry : current) for (CatalogModel.Asset asset : entry.assets()) keep.add(asset.sha256());
+		try {
+			long freed = CatalogFiles.prune(CACHE.resolve("objects"), keep);
+			if (freed > 0) LOGGER.info("Removed {} bytes of cached files the catalog no longer uses", freed);
+		} catch (IOException failure) {
+			LOGGER.warn("Could not clean the model cache: {}", failure.toString());
+		}
+	}
+
 	private static byte[] asset(CatalogModel.Asset asset) throws IOException, InterruptedException {
 		Path cache = CACHE.resolve("objects/" + asset.sha256());
 		byte[] cached = CatalogFiles.readVerified(cache, asset);
 		if (cached != null) return cached;
-		byte[] data = CatalogFiles.verified(asset, fetch(SOURCE.resolve(asset.path()), asset.bytes()));
+		byte[] data = CatalogFiles.verified(asset, fetch(SOURCE.resolve(asset.path()), asset.bytes(), null).data());
 		CatalogFiles.write(cache, data);
 		return data;
 	}
 
-	private static byte[] fetch(URI url, int maximum) throws IOException, InterruptedException {
+	/** {@code data} is null when the server confirmed {@code ifNoneMatch} with 304 Not Modified. */
+	private record Fetched(byte[] data, String tag) { }
+
+	private static Fetched fetch(URI url, int maximum, String ifNoneMatch) throws IOException, InterruptedException {
 		if (!"https".equals(url.getScheme()) && !("http".equals(url.getScheme()) && List.of("localhost", "127.0.0.1", "[::1]").contains(url.getHost()))) {
 			throw new IOException("Catalog requires HTTPS");
 		}
-		HttpRequest request = HttpRequest.newBuilder(url).timeout(Duration.ofSeconds(30)).header("User-Agent", USER_AGENT).GET().build();
-		var response = HTTP.send(request, HttpResponse.BodyHandlers.ofInputStream());
+		HttpRequest.Builder request = HttpRequest.newBuilder(url).timeout(Duration.ofSeconds(30)).header("User-Agent", USER_AGENT).GET();
+		if (ifNoneMatch != null) request.header("If-None-Match", ifNoneMatch);
+		var response = HTTP.send(request.build(), HttpResponse.BodyHandlers.ofInputStream());
 		try (InputStream stream = response.body()) {
+			if (ifNoneMatch != null && response.statusCode() == 304) return new Fetched(null, ifNoneMatch);
 			if (response.statusCode() != 200) throw new IOException("HTTP " + response.statusCode() + ": " + url);
 			byte[] data = stream.readNBytes(maximum + 1);
 			if (data.length > maximum) throw new IOException("Download exceeds size limit: " + url);
-			return data;
+			return new Fetched(data, response.headers().firstValue("ETag").orElse(null));
 		}
 	}
 

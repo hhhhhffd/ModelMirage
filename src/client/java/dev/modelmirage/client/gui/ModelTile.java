@@ -44,7 +44,14 @@ public final class ModelTile extends Control {
 		if (!CatalogService.supports(model)) return Lang.tr("modelmirage.tile.needs_loader");
 		if (CatalogService.isLoading(model)) return Lang.tr("modelmirage.state.loading");
 		if (CatalogService.hasFailed(model)) return Lang.tr("modelmirage.tile.load_failed");
+		// Not downloaded yet: tell the size up front, nothing is fetched until the tile is opened.
+		if (!model.builtin() && !CatalogService.isLoaded(model) && !CatalogService.isCached(model)) return groupName(model) + ", " + size(model.bytes());
 		return groupName(model);
+	}
+
+	public static String size(long bytes) {
+		if (bytes < 1024 * 1024) return Lang.tr("modelmirage.size.kb", Math.max(1, Math.round(bytes / 1024.0)));
+		return Lang.tr("modelmirage.size.mb", String.format(java.util.Locale.ROOT, "%.1f", bytes / (1024.0 * 1024)));
 	}
 
 	/** Catalog models without a group fall back to a default one for their kind. */

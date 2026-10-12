@@ -396,13 +396,14 @@ public final class ModelMirageScreen extends Screen {
 			} else restoreSelectedModel();
 			rebuild();
 		}
-		// Only visible tiles request previews; large catalogs never download in full.
+		// Visible tiles load previews only from files already on disk; anything else downloads when the player opens it.
 		if (grid != null) {
 			int started = 0;
 			for (ModelTile tile : grid.tiles()) {
 				if (started == 3) break;
 				if (tile.model != null && tile.y + tile.height > scroll.y && tile.y < scroll.y + scroll.height && CatalogService.supports(tile.model)
-						&& !CatalogService.isLoaded(tile.model) && !CatalogService.isLoading(tile.model) && !CatalogService.hasFailed(tile.model)) {
+						&& !CatalogService.isLoaded(tile.model) && !CatalogService.isLoading(tile.model) && !CatalogService.hasFailed(tile.model)
+						&& CatalogService.isCached(tile.model)) {
 					CatalogService.load(tile.model);
 					started++;
 				}
@@ -882,7 +883,7 @@ public final class ModelMirageScreen extends Screen {
 			if (failed) return Lang.tr("modelmirage.inspector.load_failed");
 			if (downloading) return Lang.tr("modelmirage.inspector.loading");
 			if (isApplied(selectedModel)) return Lang.tr("modelmirage.inspector.applied_group", ModelTile.groupName(selectedModel));
-			return ModelTile.groupName(selectedModel) + ", " + selectedModel.format();
+			return ModelTile.groupName(selectedModel) + ", " + selectedModel.format() + (selectedModel.builtin() ? "" : ", " + ModelTile.size(selectedModel.bytes()));
 		}
 
 		private void drawPreview(GuiGraphicsExtractor graphics, float px, float py, float pw, float ph) {
