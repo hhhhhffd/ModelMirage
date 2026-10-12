@@ -9,9 +9,9 @@ The sidebar, layout, palette and easing in ModelMirageScreen.java and
 gui/MirageUi.java are adapted from
 xyz.angames.astolfoclient.client.gui.ClickGuiScreen and clickgui.GuiUtils.
 The HUD panel composition and hotkey/settings controls are adapted from its
-Interface/HUD managers. The BoyKisser mascot frames under assets/modelmirage/mascot and MSDF font
-atlases (including bold, the Astolfo logo, watermark and interface icon
-atlases) under assets/modelmirage/ui/fonts are copied from that repository;
+Interface/HUD managers. The BoyKisser mascot frames under assets/modelmirage/mascot and the MSDF
+icon atlases (icons, interface, logo, watermark) under
+assets/modelmirage/ui/fonts are copied from that repository;
 shaders/core/msdf.fsh adapts its MSDF fragment shader. assets/modelmirage/ui/
 mob_icon.png is copied from the same source. HUD geometry,
 shadows, animated digits, health bars, effect cards, transparent inventory
@@ -33,6 +33,14 @@ publish both the model and its dependent texture. These assets are excluded
 from ModelMirage's MIT license and are not bundled in its JAR.
 
 Catalog: https://github.com/hhhhhffd/ModelMirage-catolog
+
+## Jura
+
+The text atlases medium, semibold and bold under assets/modelmirage/ui/fonts
+are generated from Jura (weights 500, 600, 700) with
+scripts/build-fonts.sh. Copyright 2019 The Jura Project Authors
+(https://github.com/ossobuffo/jura), licensed under the SIL Open Font
+License 1.1, included as assets/modelmirage/ui/fonts/Jura-OFL.txt.
 
 ## LWJGL Assimp bindings and Assimp
 
