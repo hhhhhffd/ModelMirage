@@ -70,7 +70,7 @@ public final class ModelMirageScreen extends Screen {
 	private Page page = Page.ITEMS;
 	private Item selectedItem;
 	private CatalogModel selectedModel;
-	private boolean dirty, preferencesDirty, closing, downloading, failed;
+	private boolean dirty, preferencesDirty, closing, downloading, failed, closeUnsaved;
 	private int saveDelay, preferencesDelay;
 	/** Menu scale in use; follows the preference only when no slider is held, so the track never slides away mid-drag. */
 	private float menuScale = VisualPreferences.guiScale;
@@ -230,7 +230,7 @@ public final class ModelMirageScreen extends Screen {
 		for (CosmeticSelections.Slot slot : CosmeticSelections.Slot.values()) {
 			Identifier selected = CosmeticSelections.selected(slot);
 			String label = switch (slot) { case SELF -> "Своя модель"; case OTHERS -> "Другие игроки"; case MASCOT -> "Персонаж HUD"; };
-			if (selected == null) players.add(new InfoRow(label, () -> "Обычная"));
+			if (!CosmeticSelections.isSet(slot)) players.add(new InfoRow(label, () -> slot == CosmeticSelections.Slot.MASCOT ? "BoyKisser" : "Обычная"));
 			else players.add(new AppliedRow(ItemStack.EMPTY, label, modelName(selected), () -> {
 				try { CosmeticSelections.set(slot, null); notify("Сброшено: " + label, false); rebuild(); }
 				catch (IOException failure) { saveFailed("Could not reset cosmetic", failure); }
@@ -303,6 +303,7 @@ public final class ModelMirageScreen extends Screen {
 	private void back() {
 		selectedItem = null;
 		selectedModel = null;
+		failed = downloading = false;
 		search.clear();
 		scroll.reset();
 		transition = 0;
@@ -360,8 +361,7 @@ public final class ModelMirageScreen extends Screen {
 	}
 
 	private boolean canReset() {
-		if (page == Page.MASCOTS) return CosmeticSelections.selected(CosmeticSelections.Slot.MASCOT) != null;
-		if (page.slot != null) return CosmeticSelections.selected(page.slot) != null;
+		if (page.slot != null) return CosmeticSelections.isSet(page.slot);
 		return selectedItem != null && ItemModelOverrides.isEnabled(itemId(selectedItem));
 	}
 
@@ -562,7 +562,11 @@ public final class ModelMirageScreen extends Screen {
 	@Override
 	public void onClose() {
 		if (preferencesDirty) savePreferences();
-		if (dirty) { save(); if (dirty) return; }
+		if (dirty) {
+			save();
+			// A broken config must not trap the player in the menu: the second Esc closes without saving.
+			if (dirty && !closeUnsaved) { closeUnsaved = true; notify("Не сохранено. Esc ещё раз — закрыть", true); return; }
+		}
 		if (VisualPreferences.animations) closing = true;
 		else super.onClose();
 	}
@@ -677,15 +681,11 @@ public final class ModelMirageScreen extends Screen {
 			int color = current ? Theme.TEXT : AstolfoUi.mix(Theme.TEXT_SECONDARY, Theme.TEXT, hover * 0.6f);
 			AstolfoUi.ICONS.draw(graphics, page.icon, x + 12, y + 7, 10, current ? Theme.accent() : color);
 			AstolfoUi.SEMIBOLD.draw(graphics, page.label, x + 30, Paint.centeredTextY(y, height, Theme.BODY), Theme.BODY, color);
-			String badge = switch (page) {
-				case APPLIED -> {
-					int count = ItemModelOverrides.count();
-					for (CosmeticSelections.Slot slot : CosmeticSelections.Slot.values()) if (CosmeticSelections.selected(slot) != null) count++;
-					yield count == 0 ? "" : String.valueOf(count);
-				}
-				default -> "";
-			};
-			if (!badge.isEmpty()) Paint.chip(graphics, badge, x + width - 8, y + height / 2, 0x1FFFFFFF, Theme.TEXT_SECONDARY);
+			if (page == Page.APPLIED) {
+				int count = ItemModelOverrides.count();
+				for (CosmeticSelections.Slot slot : CosmeticSelections.Slot.values()) if (CosmeticSelections.isSet(slot)) count++;
+				if (count > 0) Paint.chip(graphics, String.valueOf(count), x + width - 8, y + height / 2, 0x1FFFFFFF, Theme.TEXT_SECONDARY);
+			}
 		}
 
 		@Override

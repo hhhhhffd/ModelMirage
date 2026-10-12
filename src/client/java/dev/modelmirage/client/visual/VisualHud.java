@@ -100,7 +100,11 @@ public final class VisualHud {
 	private static void extract(GuiGraphicsExtractor graphics, DeltaTracker delta) {
 		Minecraft client = Minecraft.getInstance();
 		if (client.player == null || client.gui.hud.isHidden() || client.gui.screen() instanceof dev.modelmirage.client.ModelMirageScreen
-				|| client.gui.screen() instanceof HudEditorScreen) return;
+				|| client.gui.screen() instanceof HudEditorScreen) {
+			// Hidden panels must not keep stale hit boxes for chat dragging.
+			PANELS.clear();
+			return;
+		}
 		render(graphics, false);
 	}
 
@@ -319,13 +323,15 @@ public final class VisualHud {
 		float textStart = icons ? 28 : 11;
 		float fade = fade(module, editor);
 		List<String> active = new ArrayList<>();
+		// Editor samples stay local so they never fade through the real HUD afterwards.
+		Map<String, MobEffectInstance> shown = editor ? new LinkedHashMap<>() : EFFECTS;
 		for (var effect : current) {
 			String id = BuiltInRegistries.MOB_EFFECT.getKey(effect.getEffect().value()).toString();
-			active.add(id); EFFECTS.put(id, effect);
+			active.add(id); shown.put(id, effect);
 		}
 		float maxWidth = 80;
 		float totalHeight = 0;
-		for (var entry : EFFECTS.entrySet()) {
+		for (var entry : shown.entrySet()) {
 			Motion state = motion("effect:" + entry.getKey());
 			state.alpha = editor ? 1 : AstolfoUi.animate(state.alpha, enabled && active.contains(entry.getKey()) ? 1 : 0, 14, seconds);
 			state.height = editor ? 30 : AstolfoUi.animate(state.height, state.alpha < 0.35f ? 0 : 30, 14, seconds);
@@ -342,7 +348,7 @@ public final class VisualHud {
 			graphics.pose().scale(panel.zoom(), panel.zoom());
 			graphics.pose().translate(-panel.x(), -panel.y());
 			float y = panel.y();
-			for (var entry : EFFECTS.entrySet()) {
+			for (var entry : shown.entrySet()) {
 				Motion state = motion("effect:" + entry.getKey());
 				if (state.alpha >= 0.005f) {
 					AstolfoUi.alpha = state.alpha * fade;
@@ -368,7 +374,7 @@ public final class VisualHud {
 			AstolfoUi.alpha = 1;
 			graphics.pose().popMatrix();
 		}
-		EFFECTS.entrySet().removeIf(entry -> !active.contains(entry.getKey()) && motion("effect:" + entry.getKey()).alpha < 0.005f);
+		shown.entrySet().removeIf(entry -> !active.contains(entry.getKey()) && motion("effect:" + entry.getKey()).alpha < 0.005f);
 	}
 
 	private static void inventory(GuiGraphicsExtractor graphics, boolean editor, int width, int height) {

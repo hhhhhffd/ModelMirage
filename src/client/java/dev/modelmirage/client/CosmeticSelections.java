@@ -22,6 +22,8 @@ public final class CosmeticSelections {
 	public static Identifier selected(Slot slot) {
 		return selections.getOrDefault(slot, slot == Slot.MASCOT ? CatalogModel.boykisser().modelId() : null);
 	}
+	/** True only for an explicit choice; the HUD mascot otherwise falls back to the built-in one. */
+	public static boolean isSet(Slot slot) { return selections.containsKey(slot); }
 	public static boolean uses(Identifier id) { return selections.containsValue(id); }
 	public static void load() {
 		if (!Files.exists(CONFIG)) return;

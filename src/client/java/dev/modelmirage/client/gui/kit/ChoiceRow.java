@@ -88,7 +88,7 @@ public final class ChoiceRow extends Row {
 
 		@Override
 		public boolean mouseClicked(Surface surface, double mouseX, double mouseY, int button) {
-			int index = (int) ((mouseY - y - 4) / ITEM);
+			int index = (int) Math.floor((mouseY - y - 4) / ITEM);
 			if (button == 0 && index >= 0 && index < options.size()) {
 				changed.accept(options.get(index).id());
 				surface.close();

@@ -88,12 +88,16 @@ public final class ColorRow extends Row {
 		public boolean mouseClicked(Surface surface, double mouseX, double mouseY, int button) {
 			if (button != 0) return true;
 			if (mouseY >= y + 7 && mouseY < y + 24) {
-				int index = (int) ((mouseX - x - 9) / 17);
-				if (index >= 0 && index < PRESETS.length) { sync(PRESETS[index]); changed.accept(PRESETS[index]); }
+				int index = (int) Math.floor((mouseX - x - 9) / 17);
+				boolean onSwatch = mouseX - (x + 9 + index * 17) < 15;
+				if (onSwatch && index >= 0 && index < PRESETS.length) { sync(PRESETS[index]); changed.accept(PRESETS[index]); }
 				return true;
 			}
-			float top = fieldTop();
-			dragging = mouseY < top + 88 + 4 ? 1 : 2;
+			float top = fieldTop(), hueTop = top + 88 + 10;
+			if (mouseX < x + 6 || mouseX > x + width - 6) return true;
+			if (mouseY >= top - 4 && mouseY < top + 88 + 4) dragging = 1;
+			else if (mouseY >= hueTop - 3 && mouseY < hueTop + 11) dragging = 2;
+			else return true;
 			surface.capture(this);
 			pick(mouseX, mouseY);
 			return true;
