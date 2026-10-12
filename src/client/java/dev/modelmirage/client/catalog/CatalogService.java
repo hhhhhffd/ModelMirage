@@ -8,11 +8,12 @@ import java.util.Set;
 import java.util.Objects;
 import dev.modelmirage.client.render.RuntimeModels;
 import java.io.IOException;
-import java.io.InputStream;
+import java.io.ByteArrayOutputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -22,9 +23,14 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Flow;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
@@ -39,6 +45,7 @@ public final class CatalogService {
 			Thread.ofPlatform().daemon().name("ModelMirage-loader-", 0).factory());
 	private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10))
 			.followRedirects(HttpClient.Redirect.NEVER).build();
+	private static final Duration DOWNLOAD_DEADLINE = Duration.ofSeconds(30);
 	private static final String USER_AGENT = "ModelMirage/" + FabricLoader.getInstance().getModContainer("modelmirage")
 			.map(mod -> mod.getMetadata().getVersion().getFriendlyString()).orElse("dev");
 	private static final URI SOURCE = URI.create(System.getProperty("modelmirage.catalogUrl", DEFAULT_SOURCE));
@@ -188,21 +195,70 @@ public final class CatalogService {
 	}
 
 	/** {@code data} is null when the server confirmed {@code ifNoneMatch} with 304 Not Modified. */
-	private record Fetched(byte[] data, String tag) { }
+	record Fetched(byte[] data, String tag) { }
 
 	private static Fetched fetch(URI url, int maximum, String ifNoneMatch) throws IOException, InterruptedException {
+		return fetch(HTTP, url, maximum, ifNoneMatch, DOWNLOAD_DEADLINE);
+	}
+
+	/**
+	 * The request timeout only covers the response headers, so the whole exchange, body included, runs against
+	 * {@code deadline} and is cancelled when a server stalls mid-body.
+	 */
+	static Fetched fetch(HttpClient http, URI url, int maximum, String ifNoneMatch, Duration deadline) throws IOException, InterruptedException {
 		if (!"https".equals(url.getScheme()) && !("http".equals(url.getScheme()) && List.of("localhost", "127.0.0.1", "[::1]").contains(url.getHost()))) {
 			throw new IOException("Catalog requires HTTPS");
 		}
-		HttpRequest.Builder request = HttpRequest.newBuilder(url).timeout(Duration.ofSeconds(30)).header("User-Agent", USER_AGENT).GET();
+		HttpRequest.Builder request = HttpRequest.newBuilder(url).timeout(deadline).header("User-Agent", USER_AGENT).GET();
 		if (ifNoneMatch != null) request.header("If-None-Match", ifNoneMatch);
-		var response = HTTP.send(request.build(), HttpResponse.BodyHandlers.ofInputStream());
-		try (InputStream stream = response.body()) {
-			if (ifNoneMatch != null && response.statusCode() == 304) return new Fetched(null, ifNoneMatch);
-			if (response.statusCode() != 200) throw new IOException("HTTP " + response.statusCode() + ": " + url);
-			byte[] data = stream.readNBytes(maximum + 1);
-			if (data.length > maximum) throw new IOException("Download exceeds size limit: " + url);
-			return new Fetched(data, response.headers().firstValue("ETag").orElse(null));
+		var exchange = http.sendAsync(request.build(), info -> info.statusCode() == 200
+				? new LimitedBody(maximum, url) : HttpResponse.BodySubscribers.replacing((byte[]) null));
+		HttpResponse<byte[]> response;
+		try {
+			response = exchange.get(deadline.toMillis(), TimeUnit.MILLISECONDS);
+		} catch (TimeoutException timeout) {
+			exchange.cancel(true);
+			throw new IOException("Download timed out after " + deadline.toMillis() + " ms: " + url);
+		} catch (InterruptedException interrupted) {
+			exchange.cancel(true);
+			throw interrupted;
+		} catch (ExecutionException failure) {
+			if (failure.getCause() instanceof IOException io) throw io;
+			throw new IOException("Download failed: " + url, failure.getCause());
+		}
+		if (ifNoneMatch != null && response.statusCode() == 304) return new Fetched(null, ifNoneMatch);
+		if (response.statusCode() != 200) throw new IOException("HTTP " + response.statusCode() + ": " + url);
+		return new Fetched(response.body(), response.headers().firstValue("ETag").orElse(null));
+	}
+
+	/** Collects the body and gives up as soon as it grows past {@code maximum}, without buffering the rest. */
+	private static final class LimitedBody implements HttpResponse.BodySubscriber<byte[]> {
+		private final int maximum;
+		private final URI url;
+		private final ByteArrayOutputStream data = new ByteArrayOutputStream();
+		private final CompletableFuture<byte[]> result = new CompletableFuture<>();
+		private Flow.Subscription subscription;
+
+		LimitedBody(int maximum, URI url) { this.maximum = maximum; this.url = url; }
+
+		@Override public CompletionStage<byte[]> getBody() { return result; }
+		@Override public void onSubscribe(Flow.Subscription subscription) { this.subscription = subscription; subscription.request(Long.MAX_VALUE); }
+		@Override public void onError(Throwable failure) { result.completeExceptionally(failure); }
+		@Override public void onComplete() { result.complete(data.toByteArray()); }
+
+		@Override
+		public void onNext(List<ByteBuffer> buffers) {
+			if (result.isDone()) return;
+			for (ByteBuffer buffer : buffers) {
+				if (buffer.remaining() > maximum - data.size()) {
+					subscription.cancel();
+					result.completeExceptionally(new IOException("Download exceeds size limit: " + url));
+					return;
+				}
+				byte[] chunk = new byte[buffer.remaining()];
+				buffer.get(chunk);
+				data.writeBytes(chunk);
+			}
 		}
 	}
 
