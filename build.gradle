@@ -35,6 +35,11 @@ dependencies {
 
 test {
 	useJUnitPlatform()
+	// fabric-loader-junit treats the working directory as the game directory; keep its logs out of the project root.
+	def gameDir = layout.buildDirectory.dir("test-run").get().asFile
+	workingDir = gameDir
+	doFirst { gameDir.mkdirs() }
+	systemProperty "modelmirage.sourceDir", file("src/client/java").absolutePath
 }
 
 processResources {
