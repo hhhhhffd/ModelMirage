@@ -242,7 +242,7 @@ public final class ModelMirageScreen extends Screen {
 		for (CosmeticSelections.Slot slot : CosmeticSelections.Slot.values()) {
 			Identifier selected = CosmeticSelections.selected(slot);
 			String label = switch (slot) { case SELF -> Lang.tr("modelmirage.page.self"); case OTHERS -> Lang.tr("modelmirage.page.others"); case MASCOT -> Lang.tr("modelmirage.module.Mascot"); };
-			if (!CosmeticSelections.isSet(slot)) players.add(new InfoRow(label, () -> slot == CosmeticSelections.Slot.MASCOT ? "BoyKisser" : Lang.tr("modelmirage.applied.default")));
+			if (!CosmeticSelections.isSet(slot)) players.add(new InfoRow(label, () -> slot == CosmeticSelections.Slot.MASCOT ? CatalogModel.builtinMascot().name() : Lang.tr("modelmirage.applied.default")));
 			else players.add(new AppliedRow(ItemStack.EMPTY, label, modelName(selected), () -> {
 				try { CosmeticSelections.set(slot, null); notify(Lang.tr("modelmirage.toast.reset", label), false); rebuild(); }
 				catch (IOException failure) { saveFailed("Could not reset cosmetic", failure); }

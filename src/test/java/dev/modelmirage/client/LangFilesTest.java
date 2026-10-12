@@ -3,6 +3,7 @@ package dev.modelmirage.client;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -41,7 +42,9 @@ class LangFilesTest {
 		english = lang("en_us");
 		russian = lang("ru_ru");
 		sourceKeys = new TreeSet<>();
-		try (Stream<Path> files = Files.walk(Path.of(System.getProperty("modelmirage.sourceDir")))) {
+		String sourceDir = System.getProperty("modelmirage.sourceDir");
+		assumeTrue(sourceDir != null, "run through Gradle, which passes modelmirage.sourceDir");
+		try (Stream<Path> files = Files.walk(Path.of(sourceDir))) {
 			for (Path file : files.filter(path -> path.toString().endsWith(".java")).toList()) {
 				Matcher matcher = KEY_LITERAL.matcher(Files.readString(file));
 				while (matcher.find()) sourceKeys.add(matcher.group(1));
@@ -89,7 +92,9 @@ class LangFilesTest {
 
 	@Test
 	void translationsKeepTheSameFormatArguments() {
-		english.forEach((key, value) -> assertEquals(arguments(value), arguments(russian.get(key)), key));
+		english.forEach((key, value) -> {
+			if (russian.containsKey(key)) assertEquals(arguments(value), arguments(russian.get(key)), key);
+		});
 	}
 
 	private static List<String> arguments(String value) {

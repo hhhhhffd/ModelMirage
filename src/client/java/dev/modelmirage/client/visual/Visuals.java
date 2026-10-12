@@ -34,8 +34,7 @@ public final class Visuals {
 		try {
 			JsonObject config = JsonParser.parseString(Files.readString(CONFIG)).getAsJsonObject();
 			migratePanels(config);
-			// Older configs called the HUD mascot module "BoyKisser".
-			if (config.has("BoyKisser") && !config.has("Mascot")) config.add("Mascot", config.get("BoyKisser"));
+			migrateMascot(config);
 			for (VisualModule module : MODULES.values()) {
 				JsonObject saved = config.getAsJsonObject(module.id);
 				if (saved == null) continue;
@@ -73,6 +72,11 @@ public final class Visuals {
 		// Interface is no longer a switchable feature; a leftover binding could not be removed from the UI.
 		interfaceModule.addProperty("enabled", true);
 		interfaceModule.addProperty("bind", -1);
+	}
+
+	/** Older configs called the HUD mascot module "BoyKisser"; a saved "Mascot" entry wins. */
+	static void migrateMascot(JsonObject config) {
+		if (config.has("BoyKisser") && !config.has("Mascot")) config.add("Mascot", config.get("BoyKisser"));
 	}
 
 	public static List<VisualModule> modules() { return List.copyOf(MODULES.values()); }

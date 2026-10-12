@@ -18,21 +18,28 @@ public final class HudLayout {
 	public static void load() {
 		if (!Files.exists(CONFIG)) return;
 		try {
-			for (var entry : JsonParser.parseString(Files.readString(CONFIG)).getAsJsonObject().entrySet()) {
-				JsonObject position = entry.getValue().getAsJsonObject();
-				float x = position.get("x").getAsFloat();
-				float y = position.get("y").getAsFloat();
-				float scale = position.has("scale") ? position.get("scale").getAsFloat() : 1;
-				if (!Float.isFinite(x) || !Float.isFinite(y) || !Float.isFinite(scale)) throw new IllegalArgumentException("Invalid HUD position");
-				// Older layouts saved the mascot panel as "boykisser".
-				String id = entry.getKey().equals("boykisser") ? "mascot" : entry.getKey();
-				if (!id.equals(entry.getKey()) && POSITIONS.containsKey(id)) continue;
-				POSITIONS.put(id, new Position(Math.clamp(x, 0, 1), Math.clamp(y, 0, 1), Math.clamp(scale, 0.5f, 2)));
-			}
+			POSITIONS.putAll(parse(Files.readString(CONFIG)));
 		} catch (IOException | RuntimeException failure) {
 			LoggerFactory.getLogger("ModelMirage").error("Could not load HUD layout", failure);
 		}
 	}
+	/** Positions are clamped into the window and scale into 0.5–2; any invalid entry rejects the file. */
+	static Map<String, Position> parse(String json) {
+		Map<String, Position> result = new LinkedHashMap<>();
+		for (var entry : JsonParser.parseString(json).getAsJsonObject().entrySet()) {
+			JsonObject position = entry.getValue().getAsJsonObject();
+			float x = position.get("x").getAsFloat();
+			float y = position.get("y").getAsFloat();
+			float scale = position.has("scale") ? position.get("scale").getAsFloat() : 1;
+			if (!Float.isFinite(x) || !Float.isFinite(y) || !Float.isFinite(scale)) throw new IllegalArgumentException("Invalid HUD position");
+			// Older layouts saved the mascot panel as "boykisser".
+			String id = entry.getKey().equals("boykisser") ? "mascot" : entry.getKey();
+			if (!id.equals(entry.getKey()) && result.containsKey(id)) continue;
+			result.put(id, new Position(Math.clamp(x, 0, 1), Math.clamp(y, 0, 1), Math.clamp(scale, 0.5f, 2)));
+		}
+		return result;
+	}
+
 	public static Position position(String id, float defaultX, float defaultY, int width, int height) {
 		return POSITIONS.getOrDefault(id, new Position(defaultX / width, defaultY / height, 1));
 	}
