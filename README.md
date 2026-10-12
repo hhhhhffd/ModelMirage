@@ -1,6 +1,6 @@
 # ModelMirage
 
-Клиентский Fabric-мод **0.4.1** для Minecraft **26.2** (JDK **25**). Меняет
+Клиентский Fabric-мод **0.4.2** для Minecraft **26.2** (JDK **25**). Меняет
 модели предметов, модель игрока и HUD-персонажа на модели из онлайн-каталога,
 а ещё даёт настраиваемый HUD. Всё работает только у тебя в клиенте: сервер
 видит обычные предметы, другие игроки — обычные модели.
@@ -18,7 +18,7 @@
 
 ## Установка и использование
 
-1. Положи `ModelMirage-0.4.1.jar` и Fabric API для 26.2 в `mods/`.
+1. Положи `ModelMirage-0.4.2.jar` и Fabric API для 26.2 в `mods/`.
 2. В мире нажми **Right Shift** (клавиша меняется в «Управление → ModelMirage»).
 3. **Предметы** → выбери предмет (или просто начни печатать, например
    `diamond_sword`, и нажми Enter) → выбери модель.
@@ -232,7 +232,7 @@ JAVA_HOME=/usr/lib/jvm/java-25-openjdk ./gradlew test       # только те�
 JAVA_HOME=/usr/lib/jvm/java-25-openjdk ./gradlew runClient  # клиент для отладки
 ```
 
-Готовый JAR: `build/libs/ModelMirage-0.4.1.jar`. Тесты и ручные сценарии
+Готовый JAR: `build/libs/ModelMirage-0.4.2.jar`. Тесты и ручные сценарии
 описаны в [docs/TESTING.md](docs/TESTING.md).
 
 Устройство кода (`src/client/java/dev/modelmirage/client`):
