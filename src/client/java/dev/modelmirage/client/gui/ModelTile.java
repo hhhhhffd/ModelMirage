@@ -97,8 +97,8 @@ public final class ModelTile extends Control {
 		graphics.disableScissor();
 		MirageUi.SEMIBOLD.draw(graphics, MirageUi.SEMIBOLD.fit(name, Theme.CAPTION + 0.5f, width - 16), x + 8, y + height - 27, Theme.CAPTION + 0.5f, Theme.TEXT);
 		String status = status();
-		boolean warn = model != null && (!CatalogService.supports(model) || CatalogService.hasFailed(model));
-		if (!status.isEmpty()) MirageUi.MEDIUM.draw(graphics, MirageUi.MEDIUM.fit(status, 6.5f, width - 16), x + 8, y + height - 16, 6.5f, warn ? Theme.WARNING : Theme.TEXT_TERTIARY);
+		int statusColor = model == null ? Theme.TEXT_TERTIARY : !CatalogService.supports(model) ? Theme.WARNING : CatalogService.hasFailed(model) ? Theme.DANGER : Theme.TEXT_TERTIARY;
+		if (!status.isEmpty()) MirageUi.MEDIUM.draw(graphics, MirageUi.MEDIUM.fit(status, 6.5f, width - 16), x + 8, y + height - 16, 6.5f, statusColor);
 		if (applied.getAsBoolean()) {
 			MirageUi.glow(graphics, x + width - 10, y + 10, 2.5f, Theme.accent(), 0.35f);
 			MirageUi.shape(graphics, x + width - 13, y + 7, 6, 6, 3, 0, Theme.accent(), Theme.accent());

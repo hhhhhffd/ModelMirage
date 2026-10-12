@@ -93,7 +93,6 @@ public final class ModelMirageScreen extends Screen {
 		editor.height = 22;
 		editor.textSize = Theme.CAPTION + 0.5f;
 		refresh = new Button("", Button.Style.PLAIN, this::refreshCatalog);
-		refresh.icon = "D";
 		refresh.height = 22;
 		crumb = new Crumb();
 		float y = 74;
@@ -468,6 +467,24 @@ public final class ModelMirageScreen extends Screen {
 		MirageUi.MEDIUM.draw(graphics, Lang.tr("modelmirage.sidebar.catalog", catalogStatus().toLowerCase(Locale.ROOT)), 54, cardY + 23.5f, 6.5f, Theme.TEXT_TERTIARY);
 		refresh.layout(SIDE - 36, cardY + 9, 22);
 		refresh.render(surface);
+		drawRefreshIcon(graphics, refresh.x + 11, refresh.y + 11);
+	}
+
+	/** The icon font has no reload arrow: a three-quarter ring of short segments ending in an arrowhead, spinning while loading. */
+	private static void drawRefreshIcon(GuiGraphicsExtractor graphics, float cx, float cy) {
+		int color = Theme.TEXT_SECONDARY;
+		graphics.pose().pushMatrix();
+		graphics.pose().translate(cx, cy);
+		if (CatalogService.loading()) graphics.pose().rotate((float) (System.currentTimeMillis() % 900 / 900.0 * Math.PI * 2));
+		// From the right edge clockwise through the bottom and left to the top; the top-right quarter stays open.
+		for (int step = 0; step <= 10; step++) {
+			graphics.pose().pushMatrix();
+			graphics.pose().rotate((float) Math.toRadians(step * 27));
+			MirageUi.shape(graphics, 3.4f, -1.2f, 1.2f, 2.4f, 0.6f, 0, color, color);
+			graphics.pose().popMatrix();
+		}
+		Paint.chevron(graphics, 0.8f, -4, -0.5f, color);
+		graphics.pose().popMatrix();
 	}
 
 	private void drawTopBar(GuiGraphicsExtractor graphics) {
@@ -878,6 +895,14 @@ public final class ModelMirageScreen extends Screen {
 				MascotAnimations.draw(graphics, preview, Math.round(cx - w / 2f), Math.round(cy - h / 2f), w, h, MirageUi.opacity(0xFFFFFFFF, MirageUi.alpha));
 			} else if (selectedModel != null && CatalogService.isLoaded(selectedModel) && !(page.slot != null && isApplied(selectedModel))) {
 				RuntimeModels.preview(graphics, selectedModel.modelId(), cx, cy, 120, previewYaw, previewPitch);
+			} else if (selectedModel != null && !CatalogService.isLoaded(selectedModel)) {
+				// The chosen model is not ready: say so instead of showing the current look as if it were the choice.
+				boolean unsupported = !CatalogService.supports(selectedModel);
+				String state = Lang.tr(unsupported ? "modelmirage.tile.needs_loader" : failed ? "modelmirage.tile.load_failed" : "modelmirage.state.loading");
+				int color = unsupported ? Theme.WARNING : failed ? Theme.DANGER : Theme.TEXT_TERTIARY;
+				MirageUi.shape(graphics, cx - 20, cy - 34, 40, 40, 12, 0, 0x14FFFFFF, 0x0AFFFFFF);
+				MirageUi.ICONS.draw(graphics, page.slot != null ? "L" : "E", cx - 9, cy - 23, 18, Theme.TEXT_TERTIARY);
+				MirageUi.MEDIUM.draw(graphics, state, cx - MirageUi.MEDIUM.width(state, Theme.BODY) / 2, cy + 16, Theme.BODY, color);
 			} else if (page.slot != null) {
 				graphics.disableScissor();
 				drawPlayer(graphics, page == Page.OTHERS, px, py + 4, px + pw, py + ph - 4);
