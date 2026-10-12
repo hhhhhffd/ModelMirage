@@ -8,6 +8,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Predicate;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -33,24 +34,29 @@ public final class ItemModelOverrides {
 	public static void load() {
 		if (!Files.exists(CONFIG)) return;
 		try {
-			JsonObject root = JsonParser.parseString(Files.readString(CONFIG, StandardCharsets.UTF_8)).getAsJsonObject();
-			JsonObject items = root.getAsJsonObject("items");
-			if (items == null) throw new IllegalArgumentException("Missing items object");
-			Map<Identifier, Identifier> loaded = new HashMap<>();
-			items.entrySet().forEach(entry -> {
-				Identifier item = Identifier.tryParse(entry.getKey());
-				Identifier model = Identifier.tryParse(entry.getValue().getAsString());
-				if (Identifier.fromNamespaceAndPath("modelmirage", "blood_axe_mace").equals(model)) model = ModelMirageClient.MODEL_ID;
-				if (item == null || !BuiltInRegistries.ITEM.containsKey(item) || model == null
-						|| !model.getNamespace().equals("modelmirage") || !model.getPath().matches("catalog/[a-z0-9][a-z0-9_-]{0,63}")) {
-					throw new IllegalArgumentException("Unsupported override: " + entry.getKey());
-				}
-				loaded.put(item, model);
-			});
-			overrides = Map.copyOf(loaded);
+			overrides = parse(Files.readString(CONFIG, StandardCharsets.UTF_8), BuiltInRegistries.ITEM::containsKey);
 		} catch (IOException | RuntimeException error) {
 			LOGGER.error("Could not load {}", CONFIG, error);
 		}
+	}
+
+	/** Validates every entry; one unsupported override rejects the whole file. */
+	static Map<Identifier, Identifier> parse(String json, Predicate<Identifier> itemExists) {
+		JsonObject root = JsonParser.parseString(json).getAsJsonObject();
+		JsonObject items = root.getAsJsonObject("items");
+		if (items == null) throw new IllegalArgumentException("Missing items object");
+		Map<Identifier, Identifier> loaded = new HashMap<>();
+		items.entrySet().forEach(entry -> {
+			Identifier item = Identifier.tryParse(entry.getKey());
+			Identifier model = Identifier.tryParse(entry.getValue().getAsString());
+			if (Identifier.fromNamespaceAndPath("modelmirage", "blood_axe_mace").equals(model)) model = ModelMirageClient.MODEL_ID;
+			if (item == null || !itemExists.test(item) || model == null
+					|| !model.getNamespace().equals("modelmirage") || !model.getPath().matches("catalog/[a-z0-9][a-z0-9_-]{0,63}")) {
+				throw new IllegalArgumentException("Unsupported override: " + entry.getKey());
+			}
+			loaded.put(item, model);
+		});
+		return Map.copyOf(loaded);
 	}
 
 	public static boolean isEnabled(Identifier item) {
@@ -75,19 +81,23 @@ public final class ItemModelOverrides {
 		if (model != null) updated.put(item, model);
 		else updated.remove(item);
 
+		write(CONFIG, updated);
+		overrides = Map.copyOf(updated);
+	}
+
+	static void write(Path file, Map<Identifier, Identifier> assignments) throws IOException {
 		JsonObject root = new JsonObject();
 		JsonObject items = new JsonObject();
-		updated.forEach((itemId, modelId) -> items.addProperty(itemId.toString(), modelId.toString()));
+		assignments.forEach((itemId, modelId) -> items.addProperty(itemId.toString(), modelId.toString()));
 		root.add("items", items);
 
-		Files.createDirectories(CONFIG.getParent());
-		Path temp = CONFIG.resolveSibling("modelmirage.json.tmp");
+		Files.createDirectories(file.getParent());
+		Path temp = file.resolveSibling(file.getFileName() + ".tmp");
 		Files.writeString(temp, GSON.toJson(root), StandardCharsets.UTF_8);
 		try {
-			Files.move(temp, CONFIG, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+			Files.move(temp, file, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
 		} catch (AtomicMoveNotSupportedException ignored) {
-			Files.move(temp, CONFIG, StandardCopyOption.REPLACE_EXISTING);
+			Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING);
 		}
-		overrides = Map.copyOf(updated);
 	}
 }

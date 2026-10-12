@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -62,11 +63,13 @@ public final class AssimpModels {
 			boolean[] translucent = new boolean[spriteOf.length];
 			long pixels = 0;
 			// Files without material textures (e.g. OBJ without MTL) take a lone catalog texture for every material.
+			List<String> embeddedNames = scene.embedded().stream().map(AssimpScene.Embedded::name).toList();
 			boolean untextured = scene.materials().stream().allMatch(material -> material.texture() == null);
 			for (int i = 0; i < spriteOf.length; i++) {
 				AssimpScene.Material material = scene.materials().get(i);
-				if (material.texture() != null) spriteOf[i] = textureSprite(id, material.texture(), scene, textures, sprites);
-				else if (untextured && textures.size() == 1) spriteOf[i] = catalogSprite(textures.keySet().iterator().next(), textures, sprites);
+				TextureSource source = resolveTexture(material.texture(), embeddedNames, textures.keySet(), untextured);
+				if (source.embedded() >= 0) spriteOf[i] = embeddedSprite(id, source.embedded(), scene, sprites);
+				else if (source.catalog() != null) spriteOf[i] = catalogSprite(source.catalog(), textures, sprites);
 				if (spriteOf[i] == null) {
 					spriteOf[i] = id.withSuffix("/color_" + HexFormat.of().toHexDigits(material.color()));
 					sprites.computeIfAbsent(spriteOf[i], sprite -> solid(sprite, material.color()));
@@ -86,10 +89,19 @@ public final class AssimpModels {
 		}
 	}
 
-	/** Embedded textures first, then catalog textures by file name; a lone catalog texture is used for any reference. */
-	private static Identifier textureSprite(Identifier model, String reference, AssimpScene.Scene scene,
-			Map<Identifier, byte[]> textures, Map<Identifier, SpriteContents> sprites) throws IOException {
-		List<AssimpScene.Embedded> embedded = scene.embedded();
+	/** Where a material's base color comes from; neither field set means a solid color sprite. */
+	record TextureSource(int embedded, Identifier catalog) {
+		static final TextureSource NONE = new TextureSource(-1, null);
+	}
+
+	/**
+	 * Embedded textures first, then catalog textures by file name; a lone catalog texture is used for any reference,
+	 * and for materials without one only when the whole file has no textures ({@code untextured}).
+	 */
+	static TextureSource resolveTexture(String reference, List<String> embeddedNames, Collection<Identifier> catalog,
+			boolean untextured) throws IOException {
+		Identifier lone = catalog.size() == 1 ? catalog.iterator().next() : null;
+		if (reference == null) return untextured && lone != null ? new TextureSource(-1, lone) : TextureSource.NONE;
 		int index = -1;
 		if (reference.startsWith("*")) {
 			try {
@@ -98,20 +110,23 @@ public final class AssimpModels {
 				throw new IOException("Invalid embedded texture reference: " + reference);
 			}
 		} else {
-			for (int i = 0; i < embedded.size() && index < 0; i++) {
-				if (AssimpScene.basename(embedded.get(i).name()).equals(AssimpScene.basename(reference))) index = i;
+			for (int i = 0; i < embeddedNames.size() && index < 0; i++) {
+				if (AssimpScene.basename(embeddedNames.get(i)).equals(AssimpScene.basename(reference))) index = i;
 			}
 		}
-		if (index >= 0 && index < embedded.size()) {
-			Identifier sprite = model.withSuffix("/embedded_" + index);
-			if (!sprites.containsKey(sprite)) sprites.put(sprite, embeddedSprite(sprite, embedded.get(index)));
-			return sprite;
-		}
+		if (index >= 0 && index < embeddedNames.size()) return new TextureSource(index, null);
 		String name = stem(reference);
-		for (Identifier texture : textures.keySet()) {
-			if (stem(texture.getPath()).equals(name)) return catalogSprite(texture, textures, sprites);
+		for (Identifier texture : catalog) {
+			if (stem(texture.getPath()).equals(name)) return new TextureSource(-1, texture);
 		}
-		return textures.size() == 1 ? catalogSprite(textures.keySet().iterator().next(), textures, sprites) : null;
+		return lone != null ? new TextureSource(-1, lone) : TextureSource.NONE;
+	}
+
+	private static Identifier embeddedSprite(Identifier model, int index, AssimpScene.Scene scene,
+			Map<Identifier, SpriteContents> sprites) throws IOException {
+		Identifier sprite = model.withSuffix("/embedded_" + index);
+		if (!sprites.containsKey(sprite)) sprites.put(sprite, embeddedSprite(sprite, scene.embedded().get(index)));
+		return sprite;
 	}
 
 	private static Identifier catalogSprite(Identifier texture, Map<Identifier, byte[]> textures,
@@ -120,7 +135,7 @@ public final class AssimpModels {
 		return texture;
 	}
 
-	private static String stem(String path) {
+	static String stem(String path) {
 		String name = AssimpScene.basename(path);
 		int dot = name.lastIndexOf('.');
 		return dot > 0 ? name.substring(0, dot) : name;
@@ -166,7 +181,7 @@ public final class AssimpModels {
 	}
 
 	/** Fits the mesh into the unit block centred at (0.5, 0.5, 0.5); display transforms then size it like any item. */
-	private static float[] normalized(float[] positions) {
+	static float[] normalized(float[] positions) {
 		Vector3f min = new Vector3f(Float.POSITIVE_INFINITY), max = new Vector3f(Float.NEGATIVE_INFINITY);
 		for (int i = 0; i < positions.length; i += 3) {
 			Vector3f point = new Vector3f(positions[i], positions[i + 1], positions[i + 2]);

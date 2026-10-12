@@ -1,7 +1,5 @@
 package dev.modelmirage.client.catalog;
 
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import dev.modelmirage.client.ItemModelOverrides;
 import dev.modelmirage.client.CosmeticSelections;
 import dev.modelmirage.client.render.AssimpModels;
@@ -18,21 +16,14 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.regex.Pattern;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
@@ -43,8 +34,6 @@ public final class CatalogService {
 	public static final String DEFAULT_SOURCE = "https://raw.githubusercontent.com/hhhhhffd/ModelMirage-catolog/main/index.json";
 	private static final Logger LOGGER = LoggerFactory.getLogger("ModelMirage");
 	private static final Path CACHE = FabricLoader.getInstance().getConfigDir().resolve("modelmirage/cache");
-	private static final Pattern ID = Pattern.compile("[a-z0-9][a-z0-9_-]{0,63}");
-	private static final Pattern PATH = Pattern.compile("[A-Za-z0-9_./-]+");
 	private static final ExecutorService WORKER = Executors.newFixedThreadPool(2,
 			Thread.ofPlatform().daemon().name("ModelMirage-loader-", 0).factory());
 	private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10))
@@ -74,7 +63,7 @@ public final class CatalogService {
 	private CatalogService() { }
 
 	public static void registerLoader(String format, Set<CatalogModel.Kind> kinds, ModelLoader loader) {
-		if (!ID.matcher(format).matches() || kinds.isEmpty()) throw new IllegalArgumentException("Invalid model loader " + format);
+		if (!CatalogParser.ID.matcher(format).matches() || kinds.isEmpty()) throw new IllegalArgumentException("Invalid model loader " + format);
 		if (LOADERS.putIfAbsent(format, new Decoder(Set.copyOf(kinds), Objects.requireNonNull(loader))) != null) throw new IllegalArgumentException("Duplicate model loader " + format);
 	}
 	public static boolean supports(CatalogModel model) {
@@ -97,16 +86,16 @@ public final class CatalogService {
 		loading = true;
 		error = "";
 		return CompletableFuture.runAsync(() -> {
-			Path indexCache = CACHE.resolve("catalog-" + digest(SOURCE.toString().getBytes(StandardCharsets.UTF_8)) + ".json");
+			Path indexCache = CACHE.resolve("catalog-" + CatalogFiles.sha256(SOURCE.toString().getBytes(StandardCharsets.UTF_8)) + ".json");
 			try {
 				byte[] index = fetch(SOURCE, 2 * 1024 * 1024);
-				List<CatalogModel> parsed = parse(index);
-				writeCache(indexCache, index);
+				List<CatalogModel> parsed = CatalogParser.parse(index);
+				CatalogFiles.write(indexCache, index);
 				models = parsed;
 				cached = false;
 			} catch (Exception onlineError) {
 				try {
-					models = parse(Files.readAllBytes(indexCache));
+					models = CatalogParser.parse(Files.readAllBytes(indexCache));
 					cached = true;
 					LOGGER.warn("Catalog unavailable; using verified local index: {}", onlineError.toString());
 				} catch (Exception cacheError) {
@@ -154,68 +143,12 @@ public final class CatalogService {
 		DOWNLOADS.remove(model);
 	}
 
-	private static List<CatalogModel> parse(byte[] data) {
-		if (data.length > 2 * 1024 * 1024) throw new IllegalArgumentException("Catalog too large");
-		JsonObject root = JsonParser.parseString(new String(data, StandardCharsets.UTF_8)).getAsJsonObject();
-		if (root.get("schema").getAsInt() != 1 && root.get("schema").getAsInt() != 2) throw new IllegalArgumentException("Unsupported catalog schema");
-		var entries = root.getAsJsonArray("models");
-		if (entries.size() > 4096) throw new IllegalArgumentException("Too many catalog models");
-		List<CatalogModel> result = new ArrayList<>();
-		result.add(CatalogModel.builtinMascot());
-		HashSet<String> ids = new HashSet<>();
-		ids.add(CatalogModel.BUILTIN_MASCOT);
-		for (var value : entries) {
-			JsonObject item = value.getAsJsonObject();
-			String id = item.get("id").getAsString();
-			String name = item.get("name").getAsString();
-			String format = item.get("format").getAsString();
-			CatalogModel.Kind kind = item.has("kind") ? CatalogModel.Kind.valueOf(item.get("kind").getAsString().toUpperCase(java.util.Locale.ROOT)) : CatalogModel.Kind.ITEM;
-			String group = item.has("group") ? item.get("group").getAsString() : "";
-			int color = item.has("color") ? 0xFF000000 | Integer.parseInt(item.get("color").getAsString().replace("#", ""), 16) & 0xFFFFFF : 0xFF6573FF;
-			if (!ID.matcher(id).matches() || !ids.add(id) || name.isBlank() || name.length() > 128 || !ID.matcher(format).matches() || group.length() > 64) throw new IllegalArgumentException("Invalid catalog model: " + id);
-			List<Identifier> targets = new ArrayList<>();
-			if (item.has("items")) {
-				if (item.getAsJsonArray("items").size() > 4096) throw new IllegalArgumentException("Too many target items");
-				for (var target : item.getAsJsonArray("items")) targets.add(Identifier.parse(target.getAsString()));
-			}
-			var model = readAsset(item.getAsJsonObject("model"), 16 * 1024 * 1024);
-			var textures = readAssets(item.getAsJsonObject("textures"), 16 * 1024 * 1024, kind == CatalogModel.Kind.MASCOT ? 256 : 32);
-			var parents = readAssets(item.getAsJsonObject("parents"), 4 * 1024 * 1024, 32);
-			long totalBytes = model.bytes() + textures.values().stream().mapToLong(CatalogModel.Asset::bytes).sum() + parents.values().stream().mapToLong(CatalogModel.Asset::bytes).sum();
-			if (totalBytes > 32 * 1024 * 1024) throw new IllegalArgumentException("Invalid model asset size");
-			result.add(new CatalogModel(id, name, kind, format, group, color, List.copyOf(targets), model, textures, parents));
-		}
-		return List.copyOf(result);
-	}
-
-	private static Map<Identifier, CatalogModel.Asset> readAssets(JsonObject object, int maximum, int count) {
-		if (object == null) return Map.of();
-		if (object.size() > count) throw new IllegalArgumentException("Too many dependencies");
-		Map<Identifier, CatalogModel.Asset> result = new HashMap<>();
-		for (var entry : object.entrySet()) result.put(Identifier.parse(entry.getKey()), readAsset(entry.getValue().getAsJsonObject(), maximum));
-		return Map.copyOf(result);
-	}
-
-	private static CatalogModel.Asset readAsset(JsonObject object, int maximum) {
-		String path = object.get("path").getAsString();
-		String sha256 = object.get("sha256").getAsString();
-		long bytes = object.get("bytes").getAsLong();
-		if (!PATH.matcher(path).matches() || path.startsWith("/") || path.contains("//")
-				|| List.of(path.split("/")).stream().anyMatch(part -> part.equals(".") || part.equals(".."))
-				|| !sha256.matches("[a-f0-9]{64}") || bytes <= 0 || bytes > maximum) throw new IllegalArgumentException("Invalid catalog asset: " + path);
-		return new CatalogModel.Asset(path, sha256, (int) bytes);
-	}
-
 	private static byte[] asset(CatalogModel.Asset asset) throws IOException, InterruptedException {
 		Path cache = CACHE.resolve("objects/" + asset.sha256());
-		if (Files.exists(cache) && Files.size(cache) == asset.bytes()) {
-			byte[] data = Files.readAllBytes(cache);
-			if (digest(data).equals(asset.sha256())) return data;
-			LOGGER.warn("Discarding corrupt cache object {}", asset.sha256());
-		}
-		byte[] data = fetch(SOURCE.resolve(asset.path()), asset.bytes());
-		if (data.length != asset.bytes() || !digest(data).equals(asset.sha256())) throw new IOException("Asset checksum mismatch: " + asset.path());
-		writeCache(cache, data);
+		byte[] cached = CatalogFiles.readVerified(cache, asset);
+		if (cached != null) return cached;
+		byte[] data = CatalogFiles.verified(asset, fetch(SOURCE.resolve(asset.path()), asset.bytes()));
+		CatalogFiles.write(cache, data);
 		return data;
 	}
 
@@ -230,25 +163,6 @@ public final class CatalogService {
 			byte[] data = stream.readNBytes(maximum + 1);
 			if (data.length > maximum) throw new IOException("Download exceeds size limit: " + url);
 			return data;
-		}
-	}
-
-	private static void writeCache(Path target, byte[] data) throws IOException {
-		Files.createDirectories(target.getParent());
-		Path temporary = Files.createTempFile(target.getParent(), "download-", ".tmp");
-		try {
-			Files.write(temporary, data);
-			Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING);
-		} finally {
-			Files.deleteIfExists(temporary);
-		}
-	}
-
-	private static String digest(byte[] data) {
-		try {
-			return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(data));
-		} catch (NoSuchAlgorithmException impossible) {
-			throw new IllegalStateException(impossible);
 		}
 	}
 

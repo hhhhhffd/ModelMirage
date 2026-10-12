@@ -28,31 +28,37 @@ public final class CosmeticSelections {
 	public static void load() {
 		if (!Files.exists(CONFIG)) return;
 		try {
-			JsonObject object = JsonParser.parseString(Files.readString(CONFIG)).getAsJsonObject();
-			Map<Slot, Identifier> loaded = new EnumMap<>(Slot.class);
-			for (Slot slot : Slot.values()) {
-				if (!object.has(slot.name().toLowerCase(java.util.Locale.ROOT))) continue;
-				Identifier id = Identifier.parse(object.get(slot.name().toLowerCase(java.util.Locale.ROOT)).getAsString());
-				// Older configs stored the built-in mascot as "builtin-boykisser".
-				if (id.getPath().equals("catalog/builtin-boykisser")) id = CatalogModel.builtinMascot().modelId();
-				validate(id);
-				loaded.put(slot, id);
-			}
-			selections = Map.copyOf(loaded);
+			selections = read(CONFIG);
 		} catch (IOException | RuntimeException failure) { LoggerFactory.getLogger("ModelMirage").error("Could not load changer selections", failure); }
+	}
+	static Map<Slot, Identifier> read(Path file) throws IOException {
+		JsonObject object = JsonParser.parseString(Files.readString(file)).getAsJsonObject();
+		Map<Slot, Identifier> loaded = new EnumMap<>(Slot.class);
+		for (Slot slot : Slot.values()) {
+			if (!object.has(slot.name().toLowerCase(java.util.Locale.ROOT))) continue;
+			Identifier id = Identifier.parse(object.get(slot.name().toLowerCase(java.util.Locale.ROOT)).getAsString());
+			// Older configs stored the built-in mascot as "builtin-boykisser".
+			if (id.getPath().equals("catalog/builtin-boykisser")) id = CatalogModel.builtinMascot().modelId();
+			validate(id);
+			loaded.put(slot, id);
+		}
+		return Map.copyOf(loaded);
 	}
 	public static void set(Slot slot, Identifier id) throws IOException {
 		if (id != null) validate(id);
 		Map<Slot, Identifier> updated = new EnumMap<>(Slot.class);
 		updated.putAll(selections);
 		if (id == null) updated.remove(slot); else updated.put(slot, id);
+		write(CONFIG, updated);
+		selections = Map.copyOf(updated);
+	}
+	static void write(Path file, Map<Slot, Identifier> updated) throws IOException {
 		JsonObject object = new JsonObject();
 		updated.forEach((key, value) -> object.addProperty(key.name().toLowerCase(java.util.Locale.ROOT), value.toString()));
-		Files.createDirectories(CONFIG.getParent());
-		Path temporary = Files.createTempFile(CONFIG.getParent(), "changer-", ".tmp");
-		try { Files.writeString(temporary, object.toString()); Files.move(temporary, CONFIG, StandardCopyOption.REPLACE_EXISTING); }
+		Files.createDirectories(file.getParent());
+		Path temporary = Files.createTempFile(file.getParent(), "changer-", ".tmp");
+		try { Files.writeString(temporary, object.toString()); Files.move(temporary, file, StandardCopyOption.REPLACE_EXISTING); }
 		finally { Files.deleteIfExists(temporary); }
-		selections = Map.copyOf(updated);
 	}
 	private static void validate(Identifier id) {
 		if (!id.getNamespace().equals("modelmirage") || !id.getPath().matches("catalog/[a-z0-9][a-z0-9_-]{0,63}")) throw new IllegalArgumentException("Invalid cosmetic model " + id);
