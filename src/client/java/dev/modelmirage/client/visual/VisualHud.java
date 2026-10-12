@@ -1,6 +1,6 @@
 package dev.modelmirage.client.visual;
 
-import dev.modelmirage.client.gui.AstolfoUi;
+import dev.modelmirage.client.gui.MirageUi;
 import dev.modelmirage.client.gui.kit.Paint;
 import dev.modelmirage.client.gui.kit.Theme;
 import dev.modelmirage.client.CosmeticSelections;
@@ -31,7 +31,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
-/** Astolfo's HUD composition, sizing and easing, adapted to Minecraft's extraction renderer. */
+/** HUD panels drawn on Minecraft's extraction renderer; adapted parts are listed in THIRD_PARTY_NOTICES.md. */
 public final class VisualHud {
 	private static final List<Panel> PANELS = new ArrayList<>();
 	private static final Map<String, Motion> MOTION = new HashMap<>();
@@ -130,7 +130,7 @@ public final class VisualHud {
 		moduleList(graphics, editor, width);
 		binds(graphics, editor, width, height);
 		if (Visuals.enabled("Crosshair") && !editor) crosshair(graphics);
-		boykisser(graphics, editor);
+		mascot(graphics, editor);
 		graphics.pose().popMatrix();
 	}
 
@@ -151,9 +151,9 @@ public final class VisualHud {
 	private static Panel begin(GuiGraphicsExtractor graphics, String id, String moduleId, float x, float y, float width, float height, boolean visible, boolean background, boolean editor) {
 		VisualModule module = Visuals.module(moduleId);
 		Motion state = motion(id);
-		state.alpha = editor ? 1 : AstolfoUi.animate(state.alpha, visible ? 1 : 0, 14, seconds);
-		state.width = state.width == 0 || editor ? width : AstolfoUi.animate(state.width, width, 15, seconds);
-		state.height = state.height == 0 || editor ? height : AstolfoUi.animate(state.height, height, 15, seconds);
+		state.alpha = editor ? 1 : MirageUi.animate(state.alpha, visible ? 1 : 0, 14, seconds);
+		state.width = state.width == 0 || editor ? width : MirageUi.animate(state.width, width, 15, seconds);
+		state.height = state.height == 0 || editor ? height : MirageUi.animate(state.height, height, 15, seconds);
 		if (state.alpha < 0.005f) return null;
 		Panel panel = locate(graphics, id, module, x, y, Math.round(state.width), Math.round(state.height));
 		graphics.pose().pushMatrix();
@@ -164,7 +164,7 @@ public final class VisualHud {
 		graphics.pose().translate(panel.x() + panel.width() / 2f, panel.y() + panel.height() / 2f);
 		graphics.pose().scale(pop, pop);
 		graphics.pose().translate(-panel.x() - panel.width() / 2f, -panel.y() - panel.height() / 2f);
-		AstolfoUi.alpha = state.alpha * fade(module, editor);
+		MirageUi.alpha = state.alpha * fade(module, editor);
 		if (background) background(graphics, module, panel.x(), panel.y(), panel.width(), panel.height(), 8);
 		return panel;
 	}
@@ -175,19 +175,19 @@ public final class VisualHud {
 	private static void background(GuiGraphicsExtractor graphics, VisualModule module, float x, float y, float width, float height, float radius) {
 		String style = module.choice("style");
 		if (style.equals("none")) return;
-		if (module.bool("shadow")) AstolfoUi.shadow(graphics, x, y, width, height, radius);
+		if (module.bool("shadow")) MirageUi.shadow(graphics, x, y, width, height, radius);
 		VisualModule look = Visuals.module("Interface");
-		if (style.equals("glass")) AstolfoUi.glass(graphics, x, y, width, height, radius, look.number("blur"), Math.round(look.number("tint") * 255) << 24 | 0x0C0C10);
-		else AstolfoUi.shape(graphics, x, y, width, height, radius, 0, 0xE6121216, 0xE60C0C10);
-		AstolfoUi.shape(graphics, x, y, width, height, radius, 0.8f, 0x1FFFFFFF, 0x08FFFFFF);
+		if (style.equals("glass")) MirageUi.glass(graphics, x, y, width, height, radius, look.number("blur"), Math.round(look.number("tint") * 255) << 24 | 0x0C0C10);
+		else MirageUi.shape(graphics, x, y, width, height, radius, 0, 0xE6121216, 0xE60C0C10);
+		MirageUi.shape(graphics, x, y, width, height, radius, 0.8f, 0x1FFFFFFF, 0x08FFFFFF);
 	}
 
-	private static void end(GuiGraphicsExtractor graphics) { AstolfoUi.alpha = 1; graphics.pose().popMatrix(); }
+	private static void end(GuiGraphicsExtractor graphics) { MirageUi.alpha = 1; graphics.pose().popMatrix(); }
 
-	private static void icon(GuiGraphicsExtractor graphics, AstolfoUi.Face face, String glyph, float x, float y, float size) {
+	private static void icon(GuiGraphicsExtractor graphics, MirageUi.Face face, String glyph, float x, float y, float size) {
 		if (!Visuals.module("Interface").bool("accentIcons")) { face.draw(graphics, glyph, x, y, size, Theme.TEXT_SECONDARY); return; }
-		AstolfoUi.glow(graphics, x + size / 2, y + size / 2, size / 2, AstolfoUi.ACCENT, 0.12f);
-		face.draw(graphics, glyph, x, y, size, AstolfoUi.ACCENT);
+		MirageUi.glow(graphics, x + size / 2, y + size / 2, size / 2, MirageUi.ACCENT, 0.12f);
+		face.draw(graphics, glyph, x, y, size, MirageUi.ACCENT);
 	}
 
 	private static void animated(GuiGraphicsExtractor graphics, String id, String value, float x, float y, float size, int color) {
@@ -195,11 +195,11 @@ public final class VisualHud {
 	}
 
 	/** One icon-and-value entry of a single-line panel; a null face means no icon. */
-	private record Chip(String key, AstolfoUi.Face face, String glyph, float iconSize, String value) { }
+	private record Chip(String key, MirageUi.Face face, String glyph, float iconSize, String value) { }
 
 	private static float rowWidth(List<Chip> chips, float textSize) {
 		float width = Math.max(0, chips.size() - 1) * CHIP_GAP;
-		for (Chip chip : chips) width += (chip.face == null ? 0 : chip.iconSize + 4) + AstolfoUi.SEMIBOLD.width(chip.value, textSize);
+		for (Chip chip : chips) width += (chip.face == null ? 0 : chip.iconSize + 4) + MirageUi.SEMIBOLD.width(chip.value, textSize);
 		return width;
 	}
 
@@ -212,9 +212,9 @@ public final class VisualHud {
 				x += chip.iconSize + 4;
 			}
 			animated(graphics, prefix + chip.key, chip.value, x, textY, textSize, Theme.TEXT);
-			x += AstolfoUi.SEMIBOLD.width(chip.value, textSize);
+			x += MirageUi.SEMIBOLD.width(chip.value, textSize);
 			if (i < chips.size() - 1) {
-				AstolfoUi.shape(graphics, x + CHIP_GAP / 2 - 0.9f, panel.y() + panel.height() / 2f - 0.9f, 1.8f, 1.8f, 0.9f, 0, Theme.TEXT_TERTIARY, Theme.TEXT_TERTIARY);
+				MirageUi.shape(graphics, x + CHIP_GAP / 2 - 0.9f, panel.y() + panel.height() / 2f - 0.9f, 1.8f, 1.8f, 0.9f, 0, Theme.TEXT_TERTIARY, Theme.TEXT_TERTIARY);
 				x += CHIP_GAP;
 			}
 		}
@@ -225,10 +225,10 @@ public final class VisualHud {
 		VisualModule module = Visuals.module("Watermark");
 		var info = client.getConnection() == null ? null : client.getConnection().getPlayerInfo(client.player.getUUID());
 		List<Chip> chips = new ArrayList<>();
-		chips.add(new Chip("title", module.bool("showLogo") ? AstolfoUi.LOGO : null, "A", 14, "ModelMirage"));
-		if (module.bool("showPing")) chips.add(new Chip("ping", AstolfoUi.WATERMARK, "D", 9, (info == null ? 0 : info.getLatency()) + " MS"));
-		if (module.bool("showFps")) chips.add(new Chip("fps", AstolfoUi.WATERMARK, "C", 9, client.getFps() + " FPS"));
-		if (module.bool("showName")) chips.add(new Chip("name", AstolfoUi.WATERMARK, "B", 9, AstolfoUi.SEMIBOLD.fit(client.player.getName().getString(), 8, 80)));
+		chips.add(new Chip("title", module.bool("showLogo") ? MirageUi.LOGO : null, "A", 14, "ModelMirage"));
+		if (module.bool("showPing")) chips.add(new Chip("ping", MirageUi.WATERMARK, "D", 9, (info == null ? 0 : info.getLatency()) + " MS"));
+		if (module.bool("showFps")) chips.add(new Chip("fps", MirageUi.WATERMARK, "C", 9, client.getFps() + " FPS"));
+		if (module.bool("showName")) chips.add(new Chip("name", MirageUi.WATERMARK, "B", 9, MirageUi.SEMIBOLD.fit(client.player.getName().getString(), 8, 80)));
 		if (module.bool("showTime")) chips.add(new Chip("time", null, "", 0, LocalTime.now().format(TIME)));
 		boolean head = module.bool("showHead");
 		float total = 18 + (head ? 22 : 0) + rowWidth(chips, 8);
@@ -244,8 +244,8 @@ public final class VisualHud {
 		VisualModule module = Visuals.module("Coordinates");
 		var pos = client.player.position();
 		List<Chip> chips = new ArrayList<>();
-		if (module.bool("showCoords")) chips.add(new Chip("coords", AstolfoUi.INTERFACE, "C", 7, (int) pos.x + "X " + (int) pos.y + "Y " + (int) pos.z + "Z"));
-		if (module.bool("showSpeed")) chips.add(new Chip("bps", AstolfoUi.INTERFACE, "B", 7, String.format(Locale.ROOT, "%.2f BPS", speed)));
+		if (module.bool("showCoords")) chips.add(new Chip("coords", MirageUi.INTERFACE, "C", 7, (int) pos.x + "X " + (int) pos.y + "Y " + (int) pos.z + "Z"));
+		if (module.bool("showSpeed")) chips.add(new Chip("bps", MirageUi.INTERFACE, "B", 7, String.format(Locale.ROOT, "%.2f BPS", speed)));
 		if (module.bool("showDirection")) chips.add(new Chip("direction", null, "", 0, client.player.getDirection().getName().substring(0, 1).toUpperCase(Locale.ROOT)));
 		Panel panel = begin(graphics, "info", "Coordinates", 10, height - 28, 18 + rowWidth(chips, 7.5f), 22, on("Coordinates", editor) && !chips.isEmpty(), true, editor);
 		if (panel == null) return;
@@ -266,24 +266,24 @@ public final class VisualHud {
 		Panel panel = begin(graphics, "target", "TargetHud", width * 0.545f, height * 0.585f, textX + 9 + 88, 18 + Math.max(head ? 24 : 0, contentHeight), visible, true, editor);
 		if (panel == null) return;
 		if (entity != null) {
-			targetHealth = AstolfoUi.animate(targetHealth, entity.getHealth(), 12, seconds);
-			damageHealth = AstolfoUi.animate(damageHealth, entity.getHealth(), 6, seconds);
-			absorption = AstolfoUi.animate(absorption, entity.getAbsorptionAmount(), 12, seconds);
+			targetHealth = MirageUi.animate(targetHealth, entity.getHealth(), 12, seconds);
+			damageHealth = MirageUi.animate(damageHealth, entity.getHealth(), 6, seconds);
+			absorption = MirageUi.animate(absorption, entity.getAbsorptionAmount(), 12, seconds);
 			if (head) face(graphics, entity, panel.x() + 9, Math.round(panel.y() + (panel.height() - 24) / 2f), 24);
 			float left = panel.x() + textX;
 			float top = panel.y() + (panel.height() - contentHeight) / 2f;
-			AstolfoUi.BOLD.draw(graphics, AstolfoUi.BOLD.fit(entity.getName().getString(), 8.5f, 88), left, top, 8.5f, Theme.TEXT);
+			MirageUi.BOLD.draw(graphics, MirageUi.BOLD.fit(entity.getName().getString(), 8.5f, 88), left, top, 8.5f, Theme.TEXT);
 			float cursor = top + 11;
 			if (health) {
 				animated(graphics, "hp", String.format(Locale.ROOT, "%.1f HP", targetHealth), left, cursor, 7, Theme.TEXT_SECONDARY);
 				float maximum = Math.max(1, entity.getMaxHealth() + absorption);
 				float barY = cursor + 10.5f;
-				AstolfoUi.shape(graphics, left, barY, 88, 3.2f, 1.6f, 0, Theme.CONTROL, Theme.CONTROL);
-				AstolfoUi.shape(graphics, left, barY, 88 * Math.clamp(damageHealth / maximum, 0, 1), 3.2f, 1.6f, 0, 0xFFEB3C3C, 0xFFEB3C3C);
+				MirageUi.shape(graphics, left, barY, 88, 3.2f, 1.6f, 0, Theme.CONTROL, Theme.CONTROL);
+				MirageUi.shape(graphics, left, barY, 88 * Math.clamp(damageHealth / maximum, 0, 1), 3.2f, 1.6f, 0, 0xFFEB3C3C, 0xFFEB3C3C);
 				float hpWidth = 88 * Math.clamp(targetHealth / maximum, 0, 1);
-				AstolfoUi.glow(graphics, left + hpWidth / 2, barY + 1, 2, AstolfoUi.ACCENT, 0.18f);
-				AstolfoUi.shape(graphics, left, barY, hpWidth, 3.2f, 1.6f, 0, AstolfoUi.ACCENT, AstolfoUi.mix(AstolfoUi.ACCENT, 0xFFB432FF, 0.3f));
-				if (absorption > 0.1f) AstolfoUi.shape(graphics, left + hpWidth, barY, 88 * absorption / maximum, 3.2f, 1.6f, 0, 0xFFFFDC28, 0xFFFFA00A);
+				MirageUi.glow(graphics, left + hpWidth / 2, barY + 1, 2, MirageUi.ACCENT, 0.18f);
+				MirageUi.shape(graphics, left, barY, hpWidth, 3.2f, 1.6f, 0, MirageUi.ACCENT, MirageUi.mix(MirageUi.ACCENT, 0xFFB432FF, 0.3f));
+				if (absorption > 0.1f) MirageUi.shape(graphics, left + hpWidth, barY, 88 * absorption / maximum, 3.2f, 1.6f, 0, 0xFFFFDC28, 0xFFFFA00A);
 				cursor += 14;
 			}
 			if (armor) {
@@ -303,13 +303,13 @@ public final class VisualHud {
 	}
 
 	private static void face(GuiGraphicsExtractor graphics, LivingEntity entity, int x, int y, int size) {
-		if (Visuals.module("Interface").bool("accentIcons")) AstolfoUi.glow(graphics, x + size / 2f, y + size / 2f, size / 2f, AstolfoUi.ACCENT, 0.12f);
+		if (Visuals.module("Interface").bool("accentIcons")) MirageUi.glow(graphics, x + size / 2f, y + size / 2f, size / 2f, MirageUi.ACCENT, 0.12f);
 		if (entity instanceof AbstractClientPlayer player) {
 			Identifier skin = player.getSkin().body().texturePath();
-			AstolfoUi.head(graphics, skin, x, y, size, true, entity.hurtTime > 0 ? 0xFFFF8080 : AstolfoUi.TEXT);
+			MirageUi.head(graphics, skin, x, y, size, true, entity.hurtTime > 0 ? 0xFFFF8080 : MirageUi.TEXT);
 		} else {
-			Identifier image = Identifier.fromNamespaceAndPath("modelmirage", "astolfo/mob_icon.png");
-			AstolfoUi.head(graphics, image, x, y, size, false, AstolfoUi.TEXT);
+			Identifier image = Identifier.fromNamespaceAndPath("modelmirage", "ui/mob_icon.png");
+			MirageUi.head(graphics, image, x, y, size, false, MirageUi.TEXT);
 		}
 	}
 
@@ -333,11 +333,11 @@ public final class VisualHud {
 		float totalHeight = 0;
 		for (var entry : shown.entrySet()) {
 			Motion state = motion("effect:" + entry.getKey());
-			state.alpha = editor ? 1 : AstolfoUi.animate(state.alpha, enabled && active.contains(entry.getKey()) ? 1 : 0, 14, seconds);
-			state.height = editor ? 30 : AstolfoUi.animate(state.height, state.alpha < 0.35f ? 0 : 30, 14, seconds);
+			state.alpha = editor ? 1 : MirageUi.animate(state.alpha, enabled && active.contains(entry.getKey()) ? 1 : 0, 14, seconds);
+			state.height = editor ? 30 : MirageUi.animate(state.height, state.alpha < 0.35f ? 0 : 30, 14, seconds);
 			String name = Component.translatable(entry.getValue().getEffect().value().getDescriptionId()).getString();
-			float w = textStart + 12 + AstolfoUi.BOLD.width(name + (entry.getValue().getAmplifier() > 0 ? " " + (entry.getValue().getAmplifier() + 1) : ""), 8);
-			state.width = state.width == 0 ? w : AstolfoUi.animate(state.width, w, 14, seconds);
+			float w = textStart + 12 + MirageUi.BOLD.width(name + (entry.getValue().getAmplifier() > 0 ? " " + (entry.getValue().getAmplifier() + 1) : ""), 8);
+			state.width = state.width == 0 ? w : MirageUi.animate(state.width, w, 14, seconds);
 			maxWidth = Math.max(maxWidth, state.width);
 			totalHeight += state.height;
 		}
@@ -351,19 +351,19 @@ public final class VisualHud {
 			for (var entry : shown.entrySet()) {
 				Motion state = motion("effect:" + entry.getKey());
 				if (state.alpha >= 0.005f) {
-					AstolfoUi.alpha = state.alpha * fade;
+					MirageUi.alpha = state.alpha * fade;
 					float x = panel.x() + (1 - state.alpha) * -12;
 					background(graphics, module, x, y, state.width, 26, 8);
 					var effect = entry.getValue();
 					Identifier key = BuiltInRegistries.MOB_EFFECT.getKey(effect.getEffect().value());
 					if (icons) {
 						Identifier sprite = Identifier.fromNamespaceAndPath(key.getNamespace(), "mob_effect/" + key.getPath());
-						graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, Math.round(x + 8), Math.round(y + 6), 14, 14, AstolfoUi.opacity(0xFFFFFFFF, AstolfoUi.alpha));
+						graphics.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, Math.round(x + 8), Math.round(y + 6), 14, 14, MirageUi.opacity(0xFFFFFFFF, MirageUi.alpha));
 					}
 					String name = Component.translatable(effect.getEffect().value().getDescriptionId()).getString();
 					float nameY = timer ? y + 5 : Paint.centeredTextY(y, 26, 8);
-					AstolfoUi.BOLD.draw(graphics, name, x + textStart, nameY, 8, Theme.TEXT);
-					if (effect.getAmplifier() > 0) AstolfoUi.BOLD.draw(graphics, String.valueOf(effect.getAmplifier() + 1), x + textStart + 2 + AstolfoUi.BOLD.width(name, 8), nameY, 8, AstolfoUi.ACCENT);
+					MirageUi.BOLD.draw(graphics, name, x + textStart, nameY, 8, Theme.TEXT);
+					if (effect.getAmplifier() > 0) MirageUi.BOLD.draw(graphics, String.valueOf(effect.getAmplifier() + 1), x + textStart + 2 + MirageUi.BOLD.width(name, 8), nameY, 8, MirageUi.ACCENT);
 					if (timer) {
 						String time = effect.isInfiniteDuration() ? "--:--" : effect.getDuration() / 1200 + ":" + String.format(Locale.ROOT, "%02d", effect.getDuration() / 20 % 60);
 						animated(graphics, "duration:" + entry.getKey(), time, x + textStart, y + 15, 7, Theme.TEXT_SECONDARY);
@@ -371,7 +371,7 @@ public final class VisualHud {
 				}
 				y += state.height;
 			}
-			AstolfoUi.alpha = 1;
+			MirageUi.alpha = 1;
 			graphics.pose().popMatrix();
 		}
 		shown.entrySet().removeIf(entry -> !active.contains(entry.getKey()) && motion("effect:" + entry.getKey()).alpha < 0.005f);
@@ -412,9 +412,9 @@ public final class VisualHud {
 			int x = panel.x() + 5 + index * 20;
 			graphics.item(item, x, panel.y() + 5);
 			if (durability && item.isBarVisible()) {
-				AstolfoUi.shape(graphics, x + 1, panel.y() + 23, 14, 2, 1, 0, Theme.CONTROL, Theme.CONTROL);
+				MirageUi.shape(graphics, x + 1, panel.y() + 23, 14, 2, 1, 0, Theme.CONTROL, Theme.CONTROL);
 				int color = 0xFF000000 | item.getBarColor();
-				AstolfoUi.shape(graphics, x + 1, panel.y() + 23, 14 * item.getBarWidth() / 13f, 2, 1, 0, color, color);
+				MirageUi.shape(graphics, x + 1, panel.y() + 23, 14 * item.getBarWidth() / 13f, 2, 1, 0, color, color);
 			}
 		}
 		end(graphics);
@@ -423,14 +423,14 @@ public final class VisualHud {
 	private static void moduleList(GuiGraphicsExtractor graphics, boolean editor, int width) {
 		VisualModule panelModule = Visuals.module("ArrayList");
 		List<VisualModule> modules = Visuals.modules().stream().filter(module -> !module.isPanel() && !module.category.equals("mascot") && !module.id.equals("Interface"))
-				.sorted(Comparator.comparingDouble((VisualModule module) -> AstolfoUi.SEMIBOLD.width(module.name, 7.5f)).reversed()).toList();
+				.sorted(Comparator.comparingDouble((VisualModule module) -> MirageUi.SEMIBOLD.width(module.name, 7.5f)).reversed()).toList();
 		float w = 60;
 		float h = 0;
 		for (var module : modules) {
 			Motion row = motion("module:" + module.id);
-			row.alpha = editor ? (module.enabled ? 1 : 0) : AstolfoUi.animate(row.alpha, module.enabled ? 1 : 0, 14, seconds);
-			row.height = AstolfoUi.animate(row.height, row.alpha < 0.1f ? 0 : 22, 14, seconds);
-			if (row.alpha >= 0.005f) w = Math.max(w, AstolfoUi.SEMIBOLD.width(module.name, 7.5f) + 29);
+			row.alpha = editor ? (module.enabled ? 1 : 0) : MirageUi.animate(row.alpha, module.enabled ? 1 : 0, 14, seconds);
+			row.height = MirageUi.animate(row.height, row.alpha < 0.1f ? 0 : 22, 14, seconds);
+			if (row.alpha >= 0.005f) w = Math.max(w, MirageUi.SEMIBOLD.width(module.name, 7.5f) + 29);
 			h += row.height;
 		}
 		boolean empty = editor && h < 1;
@@ -438,19 +438,19 @@ public final class VisualHud {
 		if (panel == null) return;
 		if (empty) {
 			background(graphics, panelModule, panel.x(), panel.y(), panel.width(), panel.height(), 7);
-			AstolfoUi.MEDIUM.draw(graphics, "Нет активных модулей", panel.x() + 10, Paint.centeredTextY(panel.y(), panel.height(), 7.5f), 7.5f, Theme.TEXT_TERTIARY);
+			MirageUi.MEDIUM.draw(graphics, "Нет активных модулей", panel.x() + 10, Paint.centeredTextY(panel.y(), panel.height(), 7.5f), 7.5f, Theme.TEXT_TERTIARY);
 		}
-		float alpha = AstolfoUi.alpha;
+		float alpha = MirageUi.alpha;
 		float y = panel.y();
 		for (var module : modules) {
 			Motion row = motion("module:" + module.id);
 			if (row.alpha >= 0.005f) {
-				AstolfoUi.alpha = alpha * row.alpha;
-				float rowWidth = AstolfoUi.SEMIBOLD.width(module.name, 7.5f) + 29;
+				MirageUi.alpha = alpha * row.alpha;
+				float rowWidth = MirageUi.SEMIBOLD.width(module.name, 7.5f) + 29;
 				float x = panel.x() + panel.width() - rowWidth + (1 - row.alpha) * 10;
 				background(graphics, panelModule, x, y, rowWidth, 18, 7);
-				icon(graphics, AstolfoUi.LOGO, "A", x + 6, y + 4, 10);
-				AstolfoUi.SEMIBOLD.draw(graphics, module.name, x + 21, Paint.centeredTextY(y, 18, 7.5f), 7.5f, Theme.TEXT);
+				icon(graphics, MirageUi.LOGO, "A", x + 6, y + 4, 10);
+				MirageUi.SEMIBOLD.draw(graphics, module.name, x + 21, Paint.centeredTextY(y, 18, 7.5f), 7.5f, Theme.TEXT);
 			}
 			y += row.height;
 		}
@@ -464,27 +464,27 @@ public final class VisualHud {
 		for (var module : modules) {
 			Motion row = motion("bind:" + module.id);
 			boolean visible = module.bind >= 0;
-			row.alpha = editor ? (visible ? 1 : 0) : AstolfoUi.animate(row.alpha, visible ? 1 : 0, 14, seconds);
-			row.height = editor ? (visible ? 16 : 0) : AstolfoUi.animate(row.height, visible ? 16 : 0, 14, seconds);
-			if (row.alpha >= 0.005f) w = Math.max(w, AstolfoUi.MEDIUM.width(module.name, 7.5f) + 56);
+			row.alpha = editor ? (visible ? 1 : 0) : MirageUi.animate(row.alpha, visible ? 1 : 0, 14, seconds);
+			row.height = editor ? (visible ? 16 : 0) : MirageUi.animate(row.height, visible ? 16 : 0, 14, seconds);
+			if (row.alpha >= 0.005f) w = Math.max(w, MirageUi.MEDIUM.width(module.name, 7.5f) + 56);
 			h += row.height;
 		}
-		if (editor && h < 1) w = Math.max(w, AstolfoUi.MEDIUM.width("Назначь клавишу в настройках", 7.5f) + 20);
+		if (editor && h < 1) w = Math.max(w, MirageUi.MEDIUM.width("Назначь клавишу в настройках", 7.5f) + 20);
 		Panel panel = begin(graphics, "binds", "Keybinds", width * 0.30f, height / 3f, w, 38 + Math.max(editor ? 16 : 0, h), on("Keybinds", editor) && (editor || h > 0.1f), true, editor);
 		if (panel == null) return;
-		icon(graphics, AstolfoUi.INTERFACE, "K", panel.x() + 10, panel.y() + 8, 8);
-		AstolfoUi.SEMIBOLD.draw(graphics, "Клавиши", panel.x() + 23, Paint.centeredTextY(panel.y(), 24, 8.5f), 8.5f, Theme.TEXT);
+		icon(graphics, MirageUi.INTERFACE, "K", panel.x() + 10, panel.y() + 8, 8);
+		MirageUi.SEMIBOLD.draw(graphics, "Клавиши", panel.x() + 23, Paint.centeredTextY(panel.y(), 24, 8.5f), 8.5f, Theme.TEXT);
 		Paint.separator(graphics, panel.x() + 10, panel.y() + 24, panel.width() - 20);
-		float alpha = AstolfoUi.alpha;
+		float alpha = MirageUi.alpha;
 		float y = panel.y() + 30;
-		if (editor && h < 1) AstolfoUi.MEDIUM.draw(graphics, "Назначь клавишу в настройках", panel.x() + 10, y, 7.5f, Theme.TEXT_TERTIARY);
+		if (editor && h < 1) MirageUi.MEDIUM.draw(graphics, "Назначь клавишу в настройках", panel.x() + 10, y, 7.5f, Theme.TEXT_TERTIARY);
 		for (var module : modules) {
 			Motion row = motion("bind:" + module.id);
 			if (module.bind >= 0 && row.alpha >= 0.005f) {
-				AstolfoUi.alpha = alpha * row.alpha;
-				AstolfoUi.MEDIUM.draw(graphics, module.name, panel.x() + 10, y + (1 - row.alpha) * -3, 7.5f, Theme.TEXT);
-				String key = AstolfoUi.MEDIUM.fit(dev.modelmirage.client.gui.kit.KeyRow.keyName(module.bind), 7.5f, 40);
-				AstolfoUi.MEDIUM.draw(graphics, key, panel.x() + panel.width() - AstolfoUi.MEDIUM.width(key, 7.5f) - 10, y + (1 - row.alpha) * -3, 7.5f, AstolfoUi.ACCENT);
+				MirageUi.alpha = alpha * row.alpha;
+				MirageUi.MEDIUM.draw(graphics, module.name, panel.x() + 10, y + (1 - row.alpha) * -3, 7.5f, Theme.TEXT);
+				String key = MirageUi.MEDIUM.fit(dev.modelmirage.client.gui.kit.KeyRow.keyName(module.bind), 7.5f, 40);
+				MirageUi.MEDIUM.draw(graphics, key, panel.x() + panel.width() - MirageUi.MEDIUM.width(key, 7.5f) - 10, y + (1 - row.alpha) * -3, 7.5f, MirageUi.ACCENT);
 			}
 			y += row.height;
 		}
@@ -500,17 +500,17 @@ public final class VisualHud {
 		float length = module.number("length");
 		float thickness = module.number("thickness");
 		int color = module.bool("useEntityColor") && Minecraft.getInstance().crosshairPickEntity != null ? 0xFFFF7085 : module.color("color");
-		AstolfoUi.shape(graphics, x - gap - length, y - thickness / 2, length, thickness, 0, 0, color, color);
-		AstolfoUi.shape(graphics, x + gap, y - thickness / 2, length, thickness, 0, 0, color, color);
-		AstolfoUi.shape(graphics, x - thickness / 2, y - gap - length, thickness, length, 0, 0, color, color);
-		AstolfoUi.shape(graphics, x - thickness / 2, y + gap, thickness, length, 0, 0, color, color);
+		MirageUi.shape(graphics, x - gap - length, y - thickness / 2, length, thickness, 0, 0, color, color);
+		MirageUi.shape(graphics, x + gap, y - thickness / 2, length, thickness, 0, 0, color, color);
+		MirageUi.shape(graphics, x - thickness / 2, y - gap - length, thickness, length, 0, 0, color, color);
+		MirageUi.shape(graphics, x - thickness / 2, y + gap, thickness, length, 0, 0, color, color);
 	}
 
-	private static void boykisser(GuiGraphicsExtractor graphics, boolean editor) {
+	private static void mascot(GuiGraphicsExtractor graphics, boolean editor) {
 		Identifier selected = CosmeticSelections.selected(CosmeticSelections.Slot.MASCOT);
-		Panel panel = begin(graphics, "boykisser", "BoyKisser", 20, 50, MascotAnimations.width(selected), MascotAnimations.height(selected), on("BoyKisser", editor), false, editor);
+		Panel panel = begin(graphics, "mascot", "Mascot", 20, 50, MascotAnimations.width(selected), MascotAnimations.height(selected), on("Mascot", editor), false, editor);
 		if (panel == null) return;
-		MascotAnimations.draw(graphics, selected, panel.x(), panel.y(), panel.width(), panel.height(), AstolfoUi.opacity(0xFFFFFFFF, AstolfoUi.alpha));
+		MascotAnimations.draw(graphics, selected, panel.x(), panel.y(), panel.width(), panel.height(), MirageUi.opacity(0xFFFFFFFF, MirageUi.alpha));
 		end(graphics);
 	}
 
@@ -534,10 +534,10 @@ public final class VisualHud {
 			for (int i = 0; i < value.length(); i++) {
 				String glyph = value.substring(i, i + 1);
 				if (i < previous.length() && previous.charAt(i) != value.charAt(i) && progress < 1) {
-					AstolfoUi.SEMIBOLD.draw(graphics, previous.substring(i, i + 1), x, y - progress * size * 0.5f, size, AstolfoUi.opacity(color, 1 - progress));
-					AstolfoUi.SEMIBOLD.draw(graphics, glyph, x, y + (1 - progress) * size * 0.5f, size, AstolfoUi.opacity(color, progress));
-				} else AstolfoUi.SEMIBOLD.draw(graphics, glyph, x, y, size, color);
-				x += AstolfoUi.SEMIBOLD.width(glyph, size);
+					MirageUi.SEMIBOLD.draw(graphics, previous.substring(i, i + 1), x, y - progress * size * 0.5f, size, MirageUi.opacity(color, 1 - progress));
+					MirageUi.SEMIBOLD.draw(graphics, glyph, x, y + (1 - progress) * size * 0.5f, size, MirageUi.opacity(color, progress));
+				} else MirageUi.SEMIBOLD.draw(graphics, glyph, x, y, size, color);
+				x += MirageUi.SEMIBOLD.width(glyph, size);
 			}
 		}
 	}

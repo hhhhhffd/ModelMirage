@@ -21,7 +21,7 @@ import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.Identifier;
 
-/** Downloaded PNG sequences use the same movable HUD surface as the bundled BoyKisser. */
+/** Downloaded PNG sequences use the same movable HUD surface as the bundled mascot. */
 public final class MascotAnimations {
 	private static final Map<Identifier, Animation> ANIMATIONS = new ConcurrentHashMap<>();
 	private static final AtomicLong GENERATION = new AtomicLong();
@@ -84,7 +84,7 @@ public final class MascotAnimations {
 		Identifier texture;
 		if (animation == null) {
 			int frame = VisualPreferences.animations ? (int) (System.currentTimeMillis() / 100 % 52) : 0;
-			texture = Identifier.fromNamespaceAndPath("modelmirage", "astolfo/boykisser/boykisser_" + frame + ".png");
+			texture = Identifier.fromNamespaceAndPath("modelmirage", "mascot/frame_" + frame + ".png");
 		} else {
 			int frame = VisualPreferences.animations ? (int) (System.currentTimeMillis() / animation.interval() % animation.frames().size()) : 0;
 			texture = animation.frames().get(frame);

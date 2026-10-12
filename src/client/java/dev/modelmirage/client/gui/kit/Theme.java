@@ -1,6 +1,6 @@
 package dev.modelmirage.client.gui.kit;
 
-import dev.modelmirage.client.gui.AstolfoUi;
+import dev.modelmirage.client.gui.MirageUi;
 
 /** Design tokens of the glass UI: translucent white layers over a dark tinted glass window. */
 public final class Theme {
@@ -33,5 +33,5 @@ public final class Theme {
 
 	private Theme() { }
 
-	public static int accent() { return AstolfoUi.ACCENT; }
+	public static int accent() { return MirageUi.ACCENT; }
 }

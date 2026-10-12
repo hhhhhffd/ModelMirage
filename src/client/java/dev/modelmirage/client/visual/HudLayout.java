@@ -24,7 +24,10 @@ public final class HudLayout {
 				float y = position.get("y").getAsFloat();
 				float scale = position.has("scale") ? position.get("scale").getAsFloat() : 1;
 				if (!Float.isFinite(x) || !Float.isFinite(y) || !Float.isFinite(scale)) throw new IllegalArgumentException("Invalid HUD position");
-				POSITIONS.put(entry.getKey(), new Position(Math.clamp(x, 0, 1), Math.clamp(y, 0, 1), Math.clamp(scale, 0.5f, 2)));
+				// Older layouts saved the mascot panel as "boykisser".
+				String id = entry.getKey().equals("boykisser") ? "mascot" : entry.getKey();
+				if (!id.equals(entry.getKey()) && POSITIONS.containsKey(id)) continue;
+				POSITIONS.put(id, new Position(Math.clamp(x, 0, 1), Math.clamp(y, 0, 1), Math.clamp(scale, 0.5f, 2)));
 			}
 		} catch (IOException | RuntimeException failure) {
 			LoggerFactory.getLogger("ModelMirage").error("Could not load HUD layout", failure);

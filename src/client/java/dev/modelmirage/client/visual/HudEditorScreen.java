@@ -1,6 +1,6 @@
 package dev.modelmirage.client.visual;
 
-import dev.modelmirage.client.gui.AstolfoUi;
+import dev.modelmirage.client.gui.MirageUi;
 import dev.modelmirage.client.gui.kit.Theme;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
@@ -27,20 +27,20 @@ public final class HudEditorScreen extends Screen {
 		float viewWidth = width / scale;
 		graphics.pose().pushMatrix();
 		graphics.pose().scale(scale, scale);
-		float size = Math.min(7.5f, (viewWidth - 40) / AstolfoUi.MEDIUM.width(HINT, 1));
-		float textWidth = AstolfoUi.MEDIUM.width(HINT, size);
+		float size = Math.min(7.5f, (viewWidth - 40) / MirageUi.MEDIUM.width(HINT, 1));
+		float textWidth = MirageUi.MEDIUM.width(HINT, size);
 		float pillX = (viewWidth - textWidth) / 2 - 12;
 		float pillY = height / scale - 36;
 		// The hint sits where bottom panels live: it steps aside when the cursor comes close.
 		boolean near = mouseX / scale > pillX - 30 && mouseX / scale < pillX + textWidth + 54 && mouseY / scale > pillY - 30;
-		hint = AstolfoUi.animate(hint, near ? 0.12f : 1, 12, Math.min((System.nanoTime() - frame) / 1e9f, 0.1f));
+		hint = MirageUi.animate(hint, near ? 0.12f : 1, 12, Math.min((System.nanoTime() - frame) / 1e9f, 0.1f));
 		frame = System.nanoTime();
-		float previous = AstolfoUi.alpha;
-		AstolfoUi.alpha = hint;
-		AstolfoUi.glass(graphics, pillX, pillY, textWidth + 24, 22, 11, 12, 0x90101014);
-		AstolfoUi.shape(graphics, pillX, pillY, textWidth + 24, 22, 11, 0.8f, 0x2AFFFFFF, 0x0CFFFFFF);
-		AstolfoUi.MEDIUM.draw(graphics, HINT, pillX + 12, pillY + (22 - size) / 2 - 0.3f, size, Theme.TEXT_SECONDARY);
-		AstolfoUi.alpha = previous;
+		float previous = MirageUi.alpha;
+		MirageUi.alpha = hint;
+		MirageUi.glass(graphics, pillX, pillY, textWidth + 24, 22, 11, 12, 0x90101014);
+		MirageUi.shape(graphics, pillX, pillY, textWidth + 24, 22, 11, 0.8f, 0x2AFFFFFF, 0x0CFFFFFF);
+		MirageUi.MEDIUM.draw(graphics, HINT, pillX + 12, pillY + (22 - size) / 2 - 0.3f, size, Theme.TEXT_SECONDARY);
+		MirageUi.alpha = previous;
 		graphics.pose().popMatrix();
 		interaction.draw(graphics, mouseX, mouseY, true);
 	}

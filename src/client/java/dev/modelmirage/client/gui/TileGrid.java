@@ -54,7 +54,7 @@ public final class TileGrid extends Control {
 			if (section.tiles().isEmpty()) continue;
 			if (!section.caption().isEmpty()) {
 				float top = section.tiles().getFirst().y - CAPTION;
-				if (top < viewBottom && top + CAPTION > viewTop) AstolfoUi.SEMIBOLD.draw(surface.graphics, section.caption().toUpperCase(java.util.Locale.ROOT) + "  " + section.tiles().size(), x + 2, top + 6, Theme.CAPTION, Theme.TEXT_TERTIARY);
+				if (top < viewBottom && top + CAPTION > viewTop) MirageUi.SEMIBOLD.draw(surface.graphics, section.caption().toUpperCase(java.util.Locale.ROOT) + "  " + section.tiles().size(), x + 2, top + 6, Theme.CAPTION, Theme.TEXT_TERTIARY);
 			}
 			for (ModelTile tile : section.tiles()) if (tile.y + tile.height > viewTop && tile.y < viewBottom) tile.render(surface);
 		}

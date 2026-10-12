@@ -1,7 +1,7 @@
 package dev.modelmirage.client.visual;
 
 import com.mojang.blaze3d.platform.InputConstants;
-import dev.modelmirage.client.gui.AstolfoUi;
+import dev.modelmirage.client.gui.MirageUi;
 import dev.modelmirage.client.gui.kit.ButtonRow;
 import dev.modelmirage.client.gui.kit.Settings;
 import dev.modelmirage.client.gui.kit.Surface;
@@ -199,16 +199,16 @@ public final class HudInteraction {
 			float x = panel.screenX();
 			float y = panel.screenY();
 			float radius = 8 * panel.scale() * panel.zoom() + 3;
-			int outline = active ? AstolfoUi.ACCENT : AstolfoUi.opacity(AstolfoUi.ACCENT, hovered ? 0.5f : 0.18f);
-			AstolfoUi.shape(graphics, x - 3, y - 3, panel.screenWidth() + 6, panel.screenHeight() + 6, radius, active ? 1.4f : 1, outline, outline);
+			int outline = active ? MirageUi.ACCENT : MirageUi.opacity(MirageUi.ACCENT, hovered ? 0.5f : 0.18f);
+			MirageUi.shape(graphics, x - 3, y - 3, panel.screenWidth() + 6, panel.screenHeight() + 6, radius, active ? 1.4f : 1, outline, outline);
 			if (active || hovered) chip(graphics, panel, scale);
 		}
-		int guide = AstolfoUi.opacity(AstolfoUi.ACCENT, 0.6f);
+		int guide = MirageUi.opacity(MirageUi.ACCENT, 0.6f);
 		if (guideX >= 0) graphics.fill(Math.round(guideX), 0, Math.round(guideX) + 1, graphics.guiHeight(), guide);
 		if (guideY >= 0) graphics.fill(0, Math.round(guideY), graphics.guiWidth(), Math.round(guideY) + 1, guide);
 		graphics.pose().pushMatrix();
 		graphics.pose().scale(scale, scale);
-		if (!error.isEmpty()) AstolfoUi.MEDIUM.draw(graphics, error, 10, 10, 9, Theme.DANGER);
+		if (!error.isEmpty()) MirageUi.MEDIUM.draw(graphics, error, 10, 10, 9, Theme.DANGER);
 		graphics.pose().popMatrix();
 		if (popover != null) {
 			popoverScale = Math.min(scale * 0.8f, Math.min((graphics.guiHeight() - 12f) / popover.preferredHeight(), (graphics.guiWidth() - 12f) / HudPopover.preferredWidth()));
@@ -228,16 +228,16 @@ public final class HudInteraction {
 	private void chip(GuiGraphicsExtractor graphics, VisualHud.Panel panel, float scale) {
 		String name = panel.label();
 		String zoom = Math.round(panel.zoom() * 100) + "%";
-		float width = AstolfoUi.SEMIBOLD.width(name, 6.5f) + AstolfoUi.MEDIUM.width(zoom, 6) + 20;
+		float width = MirageUi.SEMIBOLD.width(name, 6.5f) + MirageUi.MEDIUM.width(zoom, 6) + 20;
 		float x = Math.clamp(panel.screenX() / scale, 4, Math.max(4, graphics.guiWidth() / scale - width - 4));
 		float top = panel.screenY() / scale - 21;
 		float y = top >= 4 ? top : (panel.screenY() + panel.screenHeight()) / scale + 7;
 		graphics.pose().pushMatrix();
 		graphics.pose().scale(scale, scale);
-		AstolfoUi.glass(graphics, x, y, width, 15, 7.5f, 10, 0x90101014);
-		AstolfoUi.shape(graphics, x, y, width, 15, 7.5f, 0.8f, 0x2AFFFFFF, 0x0CFFFFFF);
-		AstolfoUi.SEMIBOLD.draw(graphics, name, x + 8, y + 4.2f, 6.5f, Theme.TEXT);
-		AstolfoUi.MEDIUM.draw(graphics, zoom, x + 13 + AstolfoUi.SEMIBOLD.width(name, 6.5f), y + 4.5f, 6, Theme.TEXT_SECONDARY);
+		MirageUi.glass(graphics, x, y, width, 15, 7.5f, 10, 0x90101014);
+		MirageUi.shape(graphics, x, y, width, 15, 7.5f, 0.8f, 0x2AFFFFFF, 0x0CFFFFFF);
+		MirageUi.SEMIBOLD.draw(graphics, name, x + 8, y + 4.2f, 6.5f, Theme.TEXT);
+		MirageUi.MEDIUM.draw(graphics, zoom, x + 13 + MirageUi.SEMIBOLD.width(name, 6.5f), y + 4.5f, 6, Theme.TEXT_SECONDARY);
 		graphics.pose().popMatrix();
 	}
 }

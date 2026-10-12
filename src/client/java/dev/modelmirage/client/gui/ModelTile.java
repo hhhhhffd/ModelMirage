@@ -52,17 +52,17 @@ public final class ModelTile extends Control {
 	public void render(Surface surface) {
 		var graphics = surface.graphics;
 		updateHover(surface);
-		select = AstolfoUi.animate(select, selected.getAsBoolean() ? 1 : 0, 18, surface.delta);
-		press = AstolfoUi.animate(press, 0, 12, surface.delta);
+		select = MirageUi.animate(select, selected.getAsBoolean() ? 1 : 0, 18, surface.delta);
+		press = MirageUi.animate(press, 0, 12, surface.delta);
 		graphics.pose().pushMatrix();
 		float scale = 1 + hover * 0.015f - press * 0.03f;
 		graphics.pose().translate(x + width / 2, y + height / 2);
 		graphics.pose().scale(scale, scale);
 		graphics.pose().translate(-x - width / 2, -y - height / 2);
-		int fill = AstolfoUi.mix(AstolfoUi.mix(Theme.CARD, 0x1AFFFFFF, hover), AstolfoUi.opacity(Theme.accent(), 0.16f), select);
-		AstolfoUi.shape(graphics, x, y, width, height, 10, 0, fill, fill);
-		int stroke = AstolfoUi.mix(Theme.CARD_STROKE, Theme.accent(), select);
-		AstolfoUi.shape(graphics, x, y, width, height, 10, 0.8f + select * 0.6f, stroke, AstolfoUi.mix(0x0AFFFFFF, Theme.accent(), select));
+		int fill = MirageUi.mix(MirageUi.mix(Theme.CARD, 0x1AFFFFFF, hover), MirageUi.opacity(Theme.accent(), 0.16f), select);
+		MirageUi.shape(graphics, x, y, width, height, 10, 0, fill, fill);
+		int stroke = MirageUi.mix(Theme.CARD_STROKE, Theme.accent(), select);
+		MirageUi.shape(graphics, x, y, width, height, 10, 0.8f + select * 0.6f, stroke, MirageUi.mix(0x0AFFFFFF, Theme.accent(), select));
 		float previewHeight = height - 32;
 		graphics.enableScissor(Math.round(x + 2), Math.round(y + 2), Math.round(x + width - 2), Math.round(y + previewHeight));
 		if (model == null) {
@@ -75,24 +75,24 @@ public final class ModelTile extends Control {
 		} else if (model.kind() == CatalogModel.Kind.MASCOT && CatalogService.isLoaded(model)) {
 			float ratio = Math.min(46f / MascotAnimations.width(model.modelId()), 46f / MascotAnimations.height(model.modelId()));
 			int w = Math.round(MascotAnimations.width(model.modelId()) * ratio), h = Math.round(MascotAnimations.height(model.modelId()) * ratio);
-			MascotAnimations.draw(graphics, model.modelId(), Math.round(x + (width - w) / 2), Math.round(y + 4 + (previewHeight - h) / 2), w, h, AstolfoUi.opacity(0xFFFFFFFF, AstolfoUi.alpha));
+			MascotAnimations.draw(graphics, model.modelId(), Math.round(x + (width - w) / 2), Math.round(y + 4 + (previewHeight - h) / 2), w, h, MirageUi.opacity(0xFFFFFFFF, MirageUi.alpha));
 		} else if (CatalogService.isLoaded(model)) {
 			RuntimeModels.preview(graphics, model.modelId(), x + width / 2, y + previewHeight / 2 + 3, 44, yaw, pitch);
 		} else {
 			float pulse = CatalogService.isLoading(model) ? 0.5f + 0.5f * (float) Math.sin(System.currentTimeMillis() / 200.0) : 0;
-			AstolfoUi.shape(graphics, x + width / 2 - 16, y + previewHeight / 2 - 13, 32, 32, 9, 0, 0x14FFFFFF, 0x0AFFFFFF);
-			AstolfoUi.ICONS.draw(graphics, model.kind() == CatalogModel.Kind.PLAYER ? "L" : "E", x + width / 2 - 7, y + previewHeight / 2 - 4, 14, AstolfoUi.mix(Theme.TEXT_TERTIARY, Theme.TEXT_SECONDARY, pulse));
+			MirageUi.shape(graphics, x + width / 2 - 16, y + previewHeight / 2 - 13, 32, 32, 9, 0, 0x14FFFFFF, 0x0AFFFFFF);
+			MirageUi.ICONS.draw(graphics, model.kind() == CatalogModel.Kind.PLAYER ? "L" : "E", x + width / 2 - 7, y + previewHeight / 2 - 4, 14, MirageUi.mix(Theme.TEXT_TERTIARY, Theme.TEXT_SECONDARY, pulse));
 		}
 		graphics.disableScissor();
-		AstolfoUi.SEMIBOLD.draw(graphics, AstolfoUi.SEMIBOLD.fit(name, Theme.CAPTION + 0.5f, width - 16), x + 8, y + height - 27, Theme.CAPTION + 0.5f, Theme.TEXT);
+		MirageUi.SEMIBOLD.draw(graphics, MirageUi.SEMIBOLD.fit(name, Theme.CAPTION + 0.5f, width - 16), x + 8, y + height - 27, Theme.CAPTION + 0.5f, Theme.TEXT);
 		String status = status();
 		boolean warn = model != null && (!CatalogService.supports(model) || CatalogService.hasFailed(model));
-		if (!status.isEmpty()) AstolfoUi.MEDIUM.draw(graphics, AstolfoUi.MEDIUM.fit(status, 6.5f, width - 16), x + 8, y + height - 16, 6.5f, warn ? Theme.WARNING : Theme.TEXT_TERTIARY);
+		if (!status.isEmpty()) MirageUi.MEDIUM.draw(graphics, MirageUi.MEDIUM.fit(status, 6.5f, width - 16), x + 8, y + height - 16, 6.5f, warn ? Theme.WARNING : Theme.TEXT_TERTIARY);
 		if (applied.getAsBoolean()) {
-			AstolfoUi.glow(graphics, x + width - 10, y + 10, 2.5f, Theme.accent(), 0.35f);
-			AstolfoUi.shape(graphics, x + width - 13, y + 7, 6, 6, 3, 0, Theme.accent(), Theme.accent());
+			MirageUi.glow(graphics, x + width - 10, y + 10, 2.5f, Theme.accent(), 0.35f);
+			MirageUi.shape(graphics, x + width - 13, y + 7, 6, 6, 3, 0, Theme.accent(), Theme.accent());
 		}
-		if (model != null && model.color() != 0) AstolfoUi.shape(graphics, x + 8, y + height - 4, width - 16, 1.5f, 0.75f, 0, AstolfoUi.opacity(model.color(), 0.7f), AstolfoUi.opacity(model.color(), 0.7f));
+		if (model != null && model.color() != 0) MirageUi.shape(graphics, x + 8, y + height - 4, width - 16, 1.5f, 0.75f, 0, MirageUi.opacity(model.color(), 0.7f), MirageUi.opacity(model.color(), 0.7f));
 		graphics.pose().popMatrix();
 	}
 

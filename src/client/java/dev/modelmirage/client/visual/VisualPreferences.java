@@ -7,7 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import net.fabricmc.loader.api.FabricLoader;
-import dev.modelmirage.client.gui.AstolfoUi;
+import dev.modelmirage.client.gui.MirageUi;
 import org.slf4j.LoggerFactory;
 
 public final class VisualPreferences {
@@ -22,7 +22,7 @@ public final class VisualPreferences {
 		if (!Files.exists(CONFIG)) return;
 		try {
 			JsonObject data = JsonParser.parseString(Files.readString(CONFIG)).getAsJsonObject();
-			AstolfoUi.ACCENT = 0xFF000000 | data.get("accent").getAsInt() & 0xFFFFFF;
+			MirageUi.ACCENT = 0xFF000000 | data.get("accent").getAsInt() & 0xFFFFFF;
 			guiScale = bounded(data.get("scale").getAsFloat(), 0.75f, 1.5f);
 			opacity = bounded(data.get("opacity").getAsFloat(), 0, 1);
 			animations = data.get("animations").getAsBoolean();
@@ -35,7 +35,7 @@ public final class VisualPreferences {
 	}
 	public static void save() throws IOException {
 		JsonObject data = new JsonObject();
-		data.addProperty("accent", AstolfoUi.ACCENT); data.addProperty("scale", guiScale); data.addProperty("opacity", opacity);
+		data.addProperty("accent", MirageUi.ACCENT); data.addProperty("scale", guiScale); data.addProperty("opacity", opacity);
 		data.addProperty("animations", animations); data.addProperty("blur", blur);
 		Files.createDirectories(CONFIG.getParent());
 		Path temporary = Files.createTempFile(CONFIG.getParent(), "appearance-", ".tmp");

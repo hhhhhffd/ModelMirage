@@ -55,7 +55,7 @@ public final class CatalogService {
 	private static final Map<CatalogModel, CompletableFuture<Void>> DOWNLOADS = new ConcurrentHashMap<>();
 	private static final Map<Identifier, CatalogModel> LOADED = new ConcurrentHashMap<>();
 	private static final Map<String, Decoder> LOADERS = new ConcurrentHashMap<>();
-	private static volatile List<CatalogModel> models = List.of(CatalogModel.boykisser());
+	private static volatile List<CatalogModel> models = List.of(CatalogModel.builtinMascot());
 	private static volatile String error = "";
 	private static volatile boolean loading;
 	private static volatile boolean cached;
@@ -158,9 +158,9 @@ public final class CatalogService {
 		var entries = root.getAsJsonArray("models");
 		if (entries.size() > 4096) throw new IllegalArgumentException("Too many catalog models");
 		List<CatalogModel> result = new ArrayList<>();
-		result.add(CatalogModel.boykisser());
+		result.add(CatalogModel.builtinMascot());
 		HashSet<String> ids = new HashSet<>();
-		ids.add(CatalogModel.BOYKISSER);
+		ids.add(CatalogModel.BUILTIN_MASCOT);
 		for (var value : entries) {
 			JsonObject item = value.getAsJsonObject();
 			String id = item.get("id").getAsString();

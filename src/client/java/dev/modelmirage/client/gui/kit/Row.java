@@ -1,6 +1,6 @@
 package dev.modelmirage.client.gui.kit;
 
-import dev.modelmirage.client.gui.AstolfoUi;
+import dev.modelmirage.client.gui.MirageUi;
 
 /** A settings line: label on the left, a control on the right, a soft highlight on hover. */
 public abstract class Row extends Control {
@@ -15,11 +15,11 @@ public abstract class Row extends Control {
 	public void render(Surface surface) {
 		updateHover(surface);
 		if (hover > 0.01f) {
-			int fill = AstolfoUi.opacity(Theme.HOVER, hover);
-			AstolfoUi.shape(surface.graphics, x + 4, y + 1, width - 8, height - 2, 6, 0, fill, fill);
+			int fill = MirageUi.opacity(Theme.HOVER, hover);
+			MirageUi.shape(surface.graphics, x + 4, y + 1, width - 8, height - 2, 6, 0, fill, fill);
 		}
 		float labelWidth = labelWidth();
-		AstolfoUi.MEDIUM.draw(surface.graphics, AstolfoUi.MEDIUM.fit(label, Theme.BODY, labelWidth), x + 12, Paint.centeredTextY(y, height, Theme.BODY), Theme.BODY, Theme.TEXT);
+		MirageUi.MEDIUM.draw(surface.graphics, MirageUi.MEDIUM.fit(label, Theme.BODY, labelWidth), x + 12, Paint.centeredTextY(y, height, Theme.BODY), Theme.BODY, Theme.TEXT);
 		renderControl(surface);
 	}
 

@@ -5,15 +5,15 @@
 Source: https://github.com/SRS-0/AstolfoVisuals
 Commit: 13ca7da2a789c45a45b9c5c3eea7bb200b00ea2f
 
-The sidebar, layout, palette and easing in ModelMirageScreen.java,
-gui/AstolfoUi.java and gui/AstolfoButton.java are adapted from
+The sidebar, layout, palette and easing in ModelMirageScreen.java and
+gui/MirageUi.java are adapted from
 xyz.angames.astolfoclient.client.gui.ClickGuiScreen and clickgui.GuiUtils.
 The HUD panel composition and hotkey/settings controls are adapted from its
-Interface/HUD managers. The BoyKisser frames under assets/modelmirage/astolfo/
-boykisser and MSDF font atlases (including bold, the Astolfo logo, watermark
-and interface icon atlases) under assets/modelmirage/astolfo/fonts are copied
-from that repository; shaders/core/msdf.fsh adapts its MSDF fragment shader.
-The mob_icon.png asset is copied from the same source. HUD geometry,
+Interface/HUD managers. The BoyKisser mascot frames under assets/modelmirage/mascot and MSDF font
+atlases (including bold, the Astolfo logo, watermark and interface icon
+atlases) under assets/modelmirage/ui/fonts are copied from that repository;
+shaders/core/msdf.fsh adapts its MSDF fragment shader. assets/modelmirage/ui/
+mob_icon.png is copied from the same source. HUD geometry,
 shadows, animated digits, health bars, effect cards, transparent inventory
 and armor, and keybind/module transitions adapt its HUD managers for the
 Minecraft 26.2 extraction renderer.

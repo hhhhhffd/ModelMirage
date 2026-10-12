@@ -1,6 +1,6 @@
 package dev.modelmirage.client.gui.kit;
 
-import dev.modelmirage.client.gui.AstolfoUi;
+import dev.modelmirage.client.gui.MirageUi;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import net.minecraft.client.input.KeyEvent;
@@ -22,7 +22,7 @@ public final class ToggleRow extends Row {
 
 	@Override
 	protected void renderControl(Surface surface) {
-		progress = AstolfoUi.animate(progress, value.getAsBoolean() ? 1 : 0, 16, surface.delta);
+		progress = MirageUi.animate(progress, value.getAsBoolean() ? 1 : 0, 16, surface.delta);
 		Paint.toggle(surface.graphics, right() - Paint.SWITCH_WIDTH, centerY() - Paint.SWITCH_HEIGHT / 2, progress, hover);
 	}
 

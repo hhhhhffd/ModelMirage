@@ -15,7 +15,7 @@ public final class Surface {
 	/** Visible area in local units; popups keep themselves inside it. */
 	public float viewWidth = 10000, viewHeight = 10000;
 	private Control focused, captured, popup;
-	private int capturedButton, focusChanges;
+	private int focusChanges;
 	/** The last key press ended a focus (e.g. a key binding); its character event must not leak elsewhere. */
 	private boolean swallowChar;
 	private long frame = System.nanoTime();
@@ -56,11 +56,11 @@ public final class Surface {
 	}
 
 	public boolean mouseDragged(double mouseX, double mouseY, int button) {
-		return captured != null && button == capturedButton && captured.mouseDragged(this, mouseX, mouseY, button);
+		return captured != null && button == 0 && captured.mouseDragged(this, mouseX, mouseY, button);
 	}
 
 	public boolean mouseReleased(double mouseX, double mouseY, int button) {
-		if (captured == null || button != capturedButton) return false;
+		if (captured == null || button != 0) return false;
 		Control control = captured;
 		captured = null;
 		control.mouseReleased(this, mouseX, mouseY, button);
@@ -94,15 +94,12 @@ public final class Surface {
 	}
 
 	/** The control receives drags and the release of the current press. */
-	public void capture(Control control) { capture(control, 0); }
-	public void capture(Control control, int button) { captured = control; capturedButton = button; }
+	/** Routes left-button drags and the release to {@code control} until the button is released. */
+	public void capture(Control control) { captured = control; }
 
 	public void focus(Control control) {
 		focusChanges++;
-		if (focused == control) return;
-		Control previous = focused;
 		focused = control;
-		if (previous != null) previous.blur(this);
 	}
 
 	public boolean isFocused(Control control) { return focused == control; }

@@ -34,6 +34,8 @@ public final class Visuals {
 		try {
 			JsonObject config = JsonParser.parseString(Files.readString(CONFIG)).getAsJsonObject();
 			migratePanels(config);
+			// Older configs called the HUD mascot module "BoyKisser".
+			if (config.has("BoyKisser") && !config.has("Mascot")) config.add("Mascot", config.get("BoyKisser"));
 			for (VisualModule module : MODULES.values()) {
 				JsonObject saved = config.getAsJsonObject(module.id);
 				if (saved == null) continue;

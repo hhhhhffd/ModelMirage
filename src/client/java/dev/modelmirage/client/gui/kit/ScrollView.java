@@ -1,12 +1,11 @@
 package dev.modelmirage.client.gui.kit;
 
-import dev.modelmirage.client.gui.AstolfoUi;
+import dev.modelmirage.client.gui.MirageUi;
 
 /** Clipped, smoothly scrolling viewport with an overlay scrollbar that shows while in use. */
 public final class ScrollView extends Control {
 	private static final float GUTTER = 8;
 	public Control content;
-	public float padding = 0;
 	private float scroll, target, maximum, barAlpha;
 	private boolean dragging;
 	private long lastScroll;
@@ -21,9 +20,9 @@ public final class ScrollView extends Control {
 		this.y = y;
 		this.width = width;
 		this.height = height;
-		scroll = AstolfoUi.animate(scroll, target, 20, delta);
+		scroll = MirageUi.animate(scroll, target, 20, delta);
 		// A fixed gutter keeps the scrollbar off the content and the layout stable when scrolling appears.
-		float contentHeight = content.layout(x + padding, y + padding - scroll, width - padding * 2 - GUTTER) + padding * 2;
+		float contentHeight = content.layout(x, y - scroll, width - GUTTER);
 		maximum = Math.max(0, contentHeight - height);
 		if (target > maximum) { target = maximum; scroll = Math.min(scroll, maximum); }
 	}
@@ -40,12 +39,12 @@ public final class ScrollView extends Control {
 		surface.mouseX = mouseX;
 		surface.mouseY = mouseY;
 		boolean active = dragging || System.currentTimeMillis() - lastScroll < 900 || inside && surface.mouseX > x + width - 10;
-		barAlpha = AstolfoUi.animate(barAlpha, maximum > 0 && active ? 1 : maximum > 0 && inside ? 0.35f : 0, 10, surface.delta);
+		barAlpha = MirageUi.animate(barAlpha, maximum > 0 && active ? 1 : maximum > 0 && inside ? 0.35f : 0, 10, surface.delta);
 		if (barAlpha > 0.01f) {
 			float track = height - 8, thumb = Math.max(24, track * height / (height + maximum));
 			float top = y + 4 + (maximum == 0 ? 0 : scroll / maximum * (track - thumb));
-			int color = AstolfoUi.opacity(0x80FFFFFF, barAlpha);
-			AstolfoUi.shape(graphics, x + width - 5, top, 3, thumb, 1.5f, 0, color, color);
+			int color = MirageUi.opacity(0x80FFFFFF, barAlpha);
+			MirageUi.shape(graphics, x + width - 5, top, 3, thumb, 1.5f, 0, color, color);
 		}
 	}
 

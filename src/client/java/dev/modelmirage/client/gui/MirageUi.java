@@ -18,8 +18,8 @@ import net.minecraft.client.renderer.state.gui.BlitRenderState;
 import net.minecraft.resources.Identifier;
 import org.joml.Matrix3x2f;
 
-/** Layout palette, animation and font assets adapted from AstolfoVisuals ClickGuiScreen/GuiUtils. */
-public final class AstolfoUi {
+/** Shared drawing, easing and MSDF font helpers for the menu and HUD; adapted parts are listed in THIRD_PARTY_NOTICES.md. */
+public final class MirageUi {
 	public static final int TEXT = 0xFFFFFFFF;
 	public static volatile int ACCENT = 0xFF80D6ED;
 	public static float alpha = 1;
@@ -47,7 +47,7 @@ public final class AstolfoUi {
 			.withVertexShader(Identifier.fromNamespaceAndPath("modelmirage", "core/glass"))
 			.withFragmentShader(Identifier.fromNamespaceAndPath("modelmirage", "core/glass")).build());
 
-	private AstolfoUi() { }
+	private MirageUi() { }
 
 	// GuiUtils.animate: frame-rate-independent easing from the upstream GUI.
 	public static float animate(float current, float target, float speed, float seconds) {
@@ -144,7 +144,7 @@ public final class AstolfoUi {
 
 		private void load() {
 			if (loaded) return;
-			Identifier data = Identifier.fromNamespaceAndPath("modelmirage", "astolfo/fonts/" + name + ".json");
+			Identifier data = Identifier.fromNamespaceAndPath("modelmirage", "ui/fonts/" + name + ".json");
 			try (var reader = Minecraft.getInstance().getResourceManager().getResourceOrThrow(data).openAsReader()) {
 				JsonObject root = JsonParser.parseReader(reader).getAsJsonObject();
 				atlasWidth = root.getAsJsonObject("atlas").get("width").getAsInt();
@@ -158,7 +158,7 @@ public final class AstolfoUi {
 				}
 				loaded = true;
 			} catch (IOException | RuntimeException error) {
-				throw new IllegalStateException("Could not load Astolfo GUI font " + name, error);
+				throw new IllegalStateException("Could not load GUI font " + name, error);
 			}
 		}
 
@@ -181,7 +181,7 @@ public final class AstolfoUi {
 		public void draw(GuiGraphicsExtractor graphics, String text, float x, float y, float size, int color) {
 			load();
 			color = opacity(color, alpha);
-			Identifier location = Identifier.fromNamespaceAndPath("modelmirage", "astolfo/fonts/" + name + ".png");
+			Identifier location = Identifier.fromNamespaceAndPath("modelmirage", "ui/fonts/" + name + ".png");
 			var texture = Minecraft.getInstance().getTextureManager().getTexture(location);
 			TextureSetup setup = TextureSetup.singleTexture(texture.getTextureView(), RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));
 			for (int code : text.codePoints().toArray()) {

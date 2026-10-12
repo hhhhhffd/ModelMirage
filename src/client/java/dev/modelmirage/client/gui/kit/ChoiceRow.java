@@ -1,6 +1,6 @@
 package dev.modelmirage.client.gui.kit;
 
-import dev.modelmirage.client.gui.AstolfoUi;
+import dev.modelmirage.client.gui.MirageUi;
 import dev.modelmirage.client.visual.VisualModule;
 import java.util.List;
 import java.util.function.Consumer;
@@ -28,7 +28,7 @@ public final class ChoiceRow extends Row {
 		return options.stream().filter(option -> option.id().equals(id)).map(VisualModule.Option::name).findFirst().orElse(id);
 	}
 
-	private float pillWidth() { return (float) Math.min(width * 0.5f - 12, Math.max(70, options.stream().mapToDouble(option -> AstolfoUi.MEDIUM.width(option.name(), Theme.CAPTION + 0.5f)).max().orElse(40) + 28)); }
+	private float pillWidth() { return (float) Math.min(width * 0.5f - 12, Math.max(70, options.stream().mapToDouble(option -> MirageUi.MEDIUM.width(option.name(), Theme.CAPTION + 0.5f)).max().orElse(40) + 28)); }
 
 	@Override
 	protected float labelWidth() { return width - pillWidth() - 30; }
@@ -36,12 +36,12 @@ public final class ChoiceRow extends Row {
 	@Override
 	protected void renderControl(Surface surface) {
 		var graphics = surface.graphics;
-		open = AstolfoUi.animate(open, surface.isOpen(menu) ? 1 : 0, 20, surface.delta);
+		open = MirageUi.animate(open, surface.isOpen(menu) ? 1 : 0, 20, surface.delta);
 		float pill = pillWidth(), left = right() - pill, cy = centerY();
-		int fill = AstolfoUi.mix(Theme.CONTROL, Theme.CONTROL_HOVER, Math.max(hover, open));
-		AstolfoUi.shape(graphics, left, cy - 8, pill, 16, Theme.RADIUS_CONTROL, 0, fill, fill);
-		String text = AstolfoUi.MEDIUM.fit(current(), Theme.CAPTION + 0.5f, pill - 26);
-		AstolfoUi.MEDIUM.draw(graphics, text, left + 8, cy - (Theme.CAPTION + 0.5f) / 2 - 0.5f, Theme.CAPTION + 0.5f, Theme.TEXT);
+		int fill = MirageUi.mix(Theme.CONTROL, Theme.CONTROL_HOVER, Math.max(hover, open));
+		MirageUi.shape(graphics, left, cy - 8, pill, 16, Theme.RADIUS_CONTROL, 0, fill, fill);
+		String text = MirageUi.MEDIUM.fit(current(), Theme.CAPTION + 0.5f, pill - 26);
+		MirageUi.MEDIUM.draw(graphics, text, left + 8, cy - (Theme.CAPTION + 0.5f) / 2 - 0.5f, Theme.CAPTION + 0.5f, Theme.TEXT);
 		Paint.chevron(graphics, right() - 9, cy + 0.5f, open, Theme.TEXT_SECONDARY);
 	}
 
@@ -79,10 +79,10 @@ public final class ChoiceRow extends Row {
 			for (int i = 0; i < options.size(); i++) {
 				var option = options.get(i);
 				float top = y + 4 + i * ITEM;
-				if (over(surface, x + 4, top, width - 8, ITEM)) AstolfoUi.shape(graphics, x + 4, top, width - 8, ITEM, 5, 0, Theme.PRESSED, Theme.PRESSED);
+				if (over(surface, x + 4, top, width - 8, ITEM)) MirageUi.shape(graphics, x + 4, top, width - 8, ITEM, 5, 0, Theme.PRESSED, Theme.PRESSED);
 				boolean chosen = option.id().equals(selected);
-				AstolfoUi.MEDIUM.draw(graphics, AstolfoUi.MEDIUM.fit(option.name(), Theme.BODY, width - 34), x + 12, Paint.centeredTextY(top, ITEM, Theme.BODY), Theme.BODY, chosen ? Theme.accent() : Theme.TEXT);
-				if (chosen) AstolfoUi.shape(graphics, x + width - 16, top + ITEM / 2 - 2.5f, 5, 5, 2.5f, 0, Theme.accent(), Theme.accent());
+				MirageUi.MEDIUM.draw(graphics, MirageUi.MEDIUM.fit(option.name(), Theme.BODY, width - 34), x + 12, Paint.centeredTextY(top, ITEM, Theme.BODY), Theme.BODY, chosen ? Theme.accent() : Theme.TEXT);
+				if (chosen) MirageUi.shape(graphics, x + width - 16, top + ITEM / 2 - 2.5f, 5, 5, 2.5f, 0, Theme.accent(), Theme.accent());
 			}
 		}
 

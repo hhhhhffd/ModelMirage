@@ -68,7 +68,7 @@
           "type": "string",
           "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$",
           "not": {
-            "const": "builtin-boykisser"
+            "const": "builtin-mascot"
           }
         },
         "name": {

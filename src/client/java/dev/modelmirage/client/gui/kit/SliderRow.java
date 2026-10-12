@@ -1,6 +1,6 @@
 package dev.modelmirage.client.gui.kit;
 
-import dev.modelmirage.client.gui.AstolfoUi;
+import dev.modelmirage.client.gui.MirageUi;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.function.DoubleConsumer;
@@ -29,7 +29,7 @@ public final class SliderRow extends Row {
 	@Override
 	protected float labelWidth() { return width * 0.42f - 14; }
 
-	private float boxWidth() { return Math.max(30, AstolfoUi.MEDIUM.width(format(max) + unit, Theme.CAPTION) + 12); }
+	private float boxWidth() { return Math.max(30, MirageUi.MEDIUM.width(format(max) + unit, Theme.CAPTION) + 12); }
 	private float trackLeft() { return x + width * 0.42f + 4; }
 	private float trackRight() { return right() - boxWidth() - 8; }
 
@@ -37,21 +37,21 @@ public final class SliderRow extends Row {
 	protected void renderControl(Surface surface) {
 		var graphics = surface.graphics;
 		float target = (float) ((value.getAsDouble() - min) / (max - min));
-		shown = shown < 0 || dragging ? target : AstolfoUi.animate(shown, target, 20, surface.delta);
-		grab = AstolfoUi.animate(grab, dragging ? 1 : hover, 18, surface.delta);
+		shown = shown < 0 || dragging ? target : MirageUi.animate(shown, target, 20, surface.delta);
+		grab = MirageUi.animate(grab, dragging ? 1 : hover, 18, surface.delta);
 		float left = trackLeft(), right = trackRight(), cy = centerY();
 		float track = right - left;
-		AstolfoUi.shape(graphics, left, cy - 1.5f, track, 3, 1.5f, 0, Theme.TRACK_OFF, Theme.TRACK_OFF);
-		AstolfoUi.shape(graphics, left, cy - 1.5f, Math.max(3, track * shown), 3, 1.5f, 0, Theme.accent(), Theme.accent());
+		MirageUi.shape(graphics, left, cy - 1.5f, track, 3, 1.5f, 0, Theme.TRACK_OFF, Theme.TRACK_OFF);
+		MirageUi.shape(graphics, left, cy - 1.5f, Math.max(3, track * shown), 3, 1.5f, 0, Theme.accent(), Theme.accent());
 		float knob = 9 + grab;
 		float knobX = left + track * shown - knob / 2;
-		AstolfoUi.shape(graphics, knobX - 0.5f, cy - knob / 2 + 0.6f, knob + 1, knob + 1, (knob + 1) / 2, 0, 0x22000000, 0x44000000);
-		AstolfoUi.shape(graphics, knobX, cy - knob / 2, knob, knob, knob / 2, 0, Theme.KNOB, 0xFFF0F0F3);
+		MirageUi.shape(graphics, knobX - 0.5f, cy - knob / 2 + 0.6f, knob + 1, knob + 1, (knob + 1) / 2, 0, 0x22000000, 0x44000000);
+		MirageUi.shape(graphics, knobX, cy - knob / 2, knob, knob, knob / 2, 0, Theme.KNOB, 0xFFF0F0F3);
 		String text = format(value.getAsDouble()) + unit;
 		float box = boxWidth();
-		int fill = surface.isFocused(this) ? AstolfoUi.opacity(Theme.accent(), 0.25f) : Theme.CONTROL;
-		AstolfoUi.shape(graphics, right() - box, cy - 7.5f, box, 15, 4.5f, 0, fill, fill);
-		AstolfoUi.MEDIUM.draw(graphics, text, right() - box / 2 - AstolfoUi.MEDIUM.width(text, Theme.CAPTION) / 2, cy - Theme.CAPTION / 2 - 0.5f, Theme.CAPTION, Theme.TEXT);
+		int fill = surface.isFocused(this) ? MirageUi.opacity(Theme.accent(), 0.25f) : Theme.CONTROL;
+		MirageUi.shape(graphics, right() - box, cy - 7.5f, box, 15, 4.5f, 0, fill, fill);
+		MirageUi.MEDIUM.draw(graphics, text, right() - box / 2 - MirageUi.MEDIUM.width(text, Theme.CAPTION) / 2, cy - Theme.CAPTION / 2 - 0.5f, Theme.CAPTION, Theme.TEXT);
 	}
 
 	@Override

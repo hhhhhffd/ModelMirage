@@ -20,7 +20,7 @@ public final class CosmeticSelections {
 	private static volatile Map<Slot, Identifier> selections = Map.of();
 	private CosmeticSelections() { }
 	public static Identifier selected(Slot slot) {
-		return selections.getOrDefault(slot, slot == Slot.MASCOT ? CatalogModel.boykisser().modelId() : null);
+		return selections.getOrDefault(slot, slot == Slot.MASCOT ? CatalogModel.builtinMascot().modelId() : null);
 	}
 	/** True only for an explicit choice; the HUD mascot otherwise falls back to the built-in one. */
 	public static boolean isSet(Slot slot) { return selections.containsKey(slot); }
@@ -33,6 +33,8 @@ public final class CosmeticSelections {
 			for (Slot slot : Slot.values()) {
 				if (!object.has(slot.name().toLowerCase(java.util.Locale.ROOT))) continue;
 				Identifier id = Identifier.parse(object.get(slot.name().toLowerCase(java.util.Locale.ROOT)).getAsString());
+				// Older configs stored the built-in mascot as "builtin-boykisser".
+				if (id.getPath().equals("catalog/builtin-boykisser")) id = CatalogModel.builtinMascot().modelId();
 				validate(id);
 				loaded.put(slot, id);
 			}

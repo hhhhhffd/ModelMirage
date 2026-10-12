@@ -7,7 +7,7 @@ in vec2 texCoord0;
 in vec4 vertexColor;
 out vec4 fragColor;
 
-// Adapted from AstolfoVisuals' MRE msdf_font shader for the 26.2 GUI pipeline.
+// MSDF text shader for the 26.2 GUI pipeline; see THIRD_PARTY_NOTICES.md.
 float median(vec3 value) {
     return max(min(value.r, value.g), min(max(value.r, value.g), value.b));
 }

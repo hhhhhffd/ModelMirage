@@ -1,7 +1,7 @@
 package dev.modelmirage.client.gui.kit;
 
 import com.mojang.blaze3d.platform.InputConstants;
-import dev.modelmirage.client.gui.AstolfoUi;
+import dev.modelmirage.client.gui.MirageUi;
 import java.util.Locale;
 import java.util.function.IntConsumer;
 import java.util.function.IntSupplier;
@@ -29,8 +29,8 @@ public final class KeyRow extends Row {
 	@Override
 	protected void renderControl(Surface surface) {
 		boolean listening = surface.isFocused(this);
-		String text = listening ? "Нажми клавишу..." : AstolfoUi.MEDIUM.fit(keyName(value.getAsInt()), Theme.CAPTION, 60);
-		int fill = listening ? AstolfoUi.opacity(Theme.accent(), 0.3f) : AstolfoUi.mix(Theme.CONTROL, Theme.CONTROL_HOVER, hover);
+		String text = listening ? "Нажми клавишу..." : MirageUi.MEDIUM.fit(keyName(value.getAsInt()), Theme.CAPTION, 60);
+		int fill = listening ? MirageUi.opacity(Theme.accent(), 0.3f) : MirageUi.mix(Theme.CONTROL, Theme.CONTROL_HOVER, hover);
 		Paint.chip(surface.graphics, text, right(), centerY(), fill, value.getAsInt() < 0 && !listening ? Theme.TEXT_SECONDARY : Theme.TEXT);
 	}
 

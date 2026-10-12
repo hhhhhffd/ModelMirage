@@ -1,6 +1,6 @@
 package dev.modelmirage.client.gui.kit;
 
-import dev.modelmirage.client.gui.AstolfoUi;
+import dev.modelmirage.client.gui.MirageUi;
 import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 
@@ -30,7 +30,7 @@ public abstract class Control {
 	/** Eases {@link #hover} towards the hovered state; returns it for convenience. */
 	protected float updateHover(Surface surface) {
 		boolean over = contains(surface.mouseX, surface.mouseY) && !surface.blockedByPopup(surface.mouseX, surface.mouseY);
-		hover = AstolfoUi.animate(hover, over ? 1 : 0, 18, surface.delta);
+		hover = MirageUi.animate(hover, over ? 1 : 0, 18, surface.delta);
 		return hover;
 	}
 
@@ -42,6 +42,4 @@ public abstract class Control {
 	public boolean keyPressed(Surface surface, KeyEvent event) { return false; }
 	/** Only delivered to the focused control. */
 	public boolean charTyped(Surface surface, CharacterEvent event) { return false; }
-	/** Called when the control loses keyboard focus. */
-	public void blur(Surface surface) { }
 }

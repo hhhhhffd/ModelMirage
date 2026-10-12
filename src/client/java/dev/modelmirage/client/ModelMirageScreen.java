@@ -3,7 +3,7 @@ package dev.modelmirage.client;
 import com.mojang.blaze3d.platform.InputConstants;
 import dev.modelmirage.client.catalog.CatalogModel;
 import dev.modelmirage.client.catalog.CatalogService;
-import dev.modelmirage.client.gui.AstolfoUi;
+import dev.modelmirage.client.gui.MirageUi;
 import dev.modelmirage.client.gui.ModelTile;
 import dev.modelmirage.client.gui.TileGrid;
 import dev.modelmirage.client.gui.kit.Button;
@@ -253,7 +253,7 @@ public final class ModelMirageScreen extends Screen {
 
 	private void buildSettings(Columns columns, String query) {
 		Group look = new Group().caption("J", "Оформление").title("Внешний вид");
-		look.add(new ColorRow("Акцентный цвет", () -> AstolfoUi.ACCENT, color -> { AstolfoUi.ACCENT = color; preferencesChanged(); }));
+		look.add(new ColorRow("Акцентный цвет", () -> MirageUi.ACCENT, color -> { MirageUi.ACCENT = color; preferencesChanged(); }));
 		look.add(new SliderRow("Масштаб меню", 0.75, 1.5, 0.05, "x", () -> VisualPreferences.guiScale, value -> { VisualPreferences.guiScale = (float) value; preferencesChanged(); }));
 		look.add(new SliderRow("Размытие стекла", 0, 30, 1, "", () -> VisualPreferences.blur, value -> { VisualPreferences.blur = (float) value; preferencesChanged(); }));
 		look.add(new SliderRow("Затемнение фона", 0, 100, 5, "%", () -> VisualPreferences.opacity * 100, value -> { VisualPreferences.opacity = (float) value / 100; preferencesChanged(); }));
@@ -413,9 +413,9 @@ public final class ModelMirageScreen extends Screen {
 
 	@Override
 	public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
-		opening = AstolfoUi.animate(opening, closing ? 0 : 1, 16, surface.delta);
+		opening = MirageUi.animate(opening, closing ? 0 : 1, 16, surface.delta);
 		if (closing && opening < 0.01f) { super.onClose(); return; }
-		transition = AstolfoUi.animate(transition, 1, 16, surface.delta);
+		transition = MirageUi.animate(transition, 1, 16, surface.delta);
 		float ease = 1 - (float) Math.pow(1 - opening, 3);
 		if (!surface.isCapturing()) menuScale = VisualPreferences.guiScale;
 		scale = Math.min(2f / minecraft.getWindow().getGuiScale() * menuScale, Math.min((width - 16f) / W, (height - 16f) / H)) * (0.96f + ease * 0.04f);
@@ -424,48 +424,48 @@ public final class ModelMirageScreen extends Screen {
 		surface.begin(graphics, (mouseX - originX) / scale, (mouseY - originY) / scale);
 		surface.viewWidth = W;
 		surface.viewHeight = H;
-		graphics.fill(0, 0, width, height, AstolfoUi.opacity(0x8C000000, opening * VisualPreferences.opacity));
+		graphics.fill(0, 0, width, height, MirageUi.opacity(0x8C000000, opening * VisualPreferences.opacity));
 		graphics.pose().pushMatrix();
 		graphics.pose().translate(originX, originY);
 		graphics.pose().scale(scale, scale);
-		AstolfoUi.alpha = opening;
+		MirageUi.alpha = opening;
 		drawWindow(graphics);
 		drawSidebar(graphics);
 		drawTopBar(graphics);
 		drawContent(graphics);
 		drawToast(graphics);
 		surface.renderPopup();
-		AstolfoUi.alpha = 1;
+		MirageUi.alpha = 1;
 		graphics.pose().popMatrix();
 	}
 
 	private void drawWindow(GuiGraphicsExtractor graphics) {
-		AstolfoUi.shadow(graphics, 0, 0, W, H, 16);
-		AstolfoUi.glass(graphics, 0, 0, W, H, 16, VisualPreferences.blur, Theme.WINDOW_TINT);
-		AstolfoUi.shape(graphics, 0, 0, SIDE, H, 16, 0, 0x1F000000, 0x1F000000);
-		AstolfoUi.shape(graphics, SIDE - 16, 0, 16, H, 0, 0, 0x1F000000, 0x1F000000);
-		AstolfoUi.shape(graphics, SIDE, 12, 0.6f, H - 24, 0, 0, Theme.SEPARATOR, Theme.SEPARATOR);
-		AstolfoUi.shape(graphics, 0, 0, W, H, 16, 0.8f, 0x2EFFFFFF, 0x0DFFFFFF);
+		MirageUi.shadow(graphics, 0, 0, W, H, 16);
+		MirageUi.glass(graphics, 0, 0, W, H, 16, VisualPreferences.blur, Theme.WINDOW_TINT);
+		MirageUi.shape(graphics, 0, 0, SIDE, H, 16, 0, 0x1F000000, 0x1F000000);
+		MirageUi.shape(graphics, SIDE - 16, 0, 16, H, 0, 0, 0x1F000000, 0x1F000000);
+		MirageUi.shape(graphics, SIDE, 12, 0.6f, H - 24, 0, 0, Theme.SEPARATOR, Theme.SEPARATOR);
+		MirageUi.shape(graphics, 0, 0, W, H, 16, 0.8f, 0x2EFFFFFF, 0x0DFFFFFF);
 	}
 
 	private void drawSidebar(GuiGraphicsExtractor graphics) {
-		AstolfoUi.shape(graphics, 18, 20, 26, 26, 8, 0, Theme.accent(), AstolfoUi.mix(Theme.accent(), 0xFF000000, 0.25f));
-		AstolfoUi.shape(graphics, 18, 20, 26, 26, 8, 0.8f, 0x55FFFFFF, 0x10FFFFFF);
-		int onAccent = AstolfoUi.luminance(Theme.accent()) > 0.6f ? 0xFF0B0B0E : 0xFFFFFFFF;
-		AstolfoUi.BOLD.draw(graphics, "M", 31 - AstolfoUi.BOLD.width("M", 13) / 2, 26.5f, 13, onAccent);
-		AstolfoUi.BOLD.draw(graphics, "ModelMirage", 52, 22, 11, Theme.TEXT);
-		AstolfoUi.MEDIUM.draw(graphics, "Модели и визуалы", 52, 35, Theme.CAPTION, Theme.TEXT_TERTIARY);
-		for (Nav nav : navigation) if (nav.page == page) navY = navY < 0 ? nav.y : AstolfoUi.animate(navY, nav.y, 20, surface.delta);
-		AstolfoUi.shape(graphics, 10, navY, SIDE - 20, 24, 7, 0, 0x1FFFFFFF, 0x17FFFFFF);
-		AstolfoUi.shape(graphics, 10, navY + 6, 2.5f, 12, 1.25f, 0, Theme.accent(), Theme.accent());
+		MirageUi.shape(graphics, 18, 20, 26, 26, 8, 0, Theme.accent(), MirageUi.mix(Theme.accent(), 0xFF000000, 0.25f));
+		MirageUi.shape(graphics, 18, 20, 26, 26, 8, 0.8f, 0x55FFFFFF, 0x10FFFFFF);
+		int onAccent = MirageUi.luminance(Theme.accent()) > 0.6f ? 0xFF0B0B0E : 0xFFFFFFFF;
+		MirageUi.BOLD.draw(graphics, "M", 31 - MirageUi.BOLD.width("M", 13) / 2, 26.5f, 13, onAccent);
+		MirageUi.BOLD.draw(graphics, "ModelMirage", 52, 22, 11, Theme.TEXT);
+		MirageUi.MEDIUM.draw(graphics, "Модели и визуалы", 52, 35, Theme.CAPTION, Theme.TEXT_TERTIARY);
+		for (Nav nav : navigation) if (nav.page == page) navY = navY < 0 ? nav.y : MirageUi.animate(navY, nav.y, 20, surface.delta);
+		MirageUi.shape(graphics, 10, navY, SIDE - 20, 24, 7, 0, 0x1FFFFFFF, 0x17FFFFFF);
+		MirageUi.shape(graphics, 10, navY + 6, 2.5f, 12, 1.25f, 0, Theme.accent(), Theme.accent());
 		for (Nav nav : navigation) nav.render(surface);
 		float cardY = H - 52;
-		AstolfoUi.shape(graphics, 10, cardY, SIDE - 20, 40, 10, 0, Theme.CARD, Theme.CARD);
-		AstolfoUi.head(graphics, minecraft.player.getSkin().body().texturePath(), 18, Math.round(cardY + 9), 22, true, 0xFFFFFFFF);
-		AstolfoUi.SEMIBOLD.draw(graphics, AstolfoUi.SEMIBOLD.fit(minecraft.player.getName().getString(), Theme.BODY, 82), 47, cardY + 10, Theme.BODY, Theme.TEXT);
+		MirageUi.shape(graphics, 10, cardY, SIDE - 20, 40, 10, 0, Theme.CARD, Theme.CARD);
+		MirageUi.head(graphics, minecraft.player.getSkin().body().texturePath(), 18, Math.round(cardY + 9), 22, true, 0xFFFFFFFF);
+		MirageUi.SEMIBOLD.draw(graphics, MirageUi.SEMIBOLD.fit(minecraft.player.getName().getString(), Theme.BODY, 82), 47, cardY + 10, Theme.BODY, Theme.TEXT);
 		int dot = CatalogService.loading() ? Theme.accent() : CatalogService.cached() ? Theme.WARNING : CatalogService.error().isEmpty() ? Theme.SUCCESS : Theme.DANGER;
-		AstolfoUi.shape(graphics, 47, cardY + 25, 4, 4, 2, 0, dot, dot);
-		AstolfoUi.MEDIUM.draw(graphics, "Каталог: " + catalogStatus().toLowerCase(Locale.ROOT), 54, cardY + 23.5f, 6.5f, Theme.TEXT_TERTIARY);
+		MirageUi.shape(graphics, 47, cardY + 25, 4, 4, 2, 0, dot, dot);
+		MirageUi.MEDIUM.draw(graphics, "Каталог: " + catalogStatus().toLowerCase(Locale.ROOT), 54, cardY + 23.5f, 6.5f, Theme.TEXT_TERTIARY);
 		refresh.layout(SIDE - 36, cardY + 9, 22);
 		refresh.render(surface);
 	}
@@ -481,8 +481,8 @@ public final class ModelMirageScreen extends Screen {
 		graphics.pose().pushMatrix();
 		graphics.pose().translate(cx, cy);
 		graphics.pose().rotate((float) Math.toRadians(45));
-		AstolfoUi.shape(graphics, -5, -0.65f, 10, 1.3f, 0.65f, 0, Theme.TEXT_SECONDARY, Theme.TEXT_SECONDARY);
-		AstolfoUi.shape(graphics, -0.65f, -5, 1.3f, 10, 0.65f, 0, Theme.TEXT_SECONDARY, Theme.TEXT_SECONDARY);
+		MirageUi.shape(graphics, -5, -0.65f, 10, 1.3f, 0.65f, 0, Theme.TEXT_SECONDARY, Theme.TEXT_SECONDARY);
+		MirageUi.shape(graphics, -0.65f, -5, 1.3f, 10, 0.65f, 0, Theme.TEXT_SECONDARY, Theme.TEXT_SECONDARY);
 		graphics.pose().popMatrix();
 		search.layout(W - PAD - 30 - 168, 15, 168);
 		search.render(surface);
@@ -492,23 +492,22 @@ public final class ModelMirageScreen extends Screen {
 			editor.layout(search.x - w - 8, 15, w);
 			editor.render(surface);
 		}
-		AstolfoUi.shape(graphics, SIDE + 12, TOP, W - SIDE - 24, 0.6f, 0, 0, Theme.SEPARATOR, Theme.SEPARATOR);
+		MirageUi.shape(graphics, SIDE + 12, TOP, W - SIDE - 24, 0.6f, 0, 0, Theme.SEPARATOR, Theme.SEPARATOR);
 	}
 
 	private void drawContent(GuiGraphicsExtractor graphics) {
 		float top = TOP + 10, bottom = H - PAD, left = SIDE + PAD;
 		float right = page.loadout() ? W - PAD - INSPECTOR - 2 : W - PAD + 4;
 		float slide = (1 - transition) * 8;
-		float previous = AstolfoUi.alpha;
-		AstolfoUi.alpha = previous * (0.3f + 0.7f * transition);
-		scroll.padding = 0;
+		float previous = MirageUi.alpha;
+		MirageUi.alpha = previous * (0.3f + 0.7f * transition);
 		scroll.place(left, top, right - left, bottom - top, surface.delta);
 		if (slide > 0.05f) scroll.content.layout(scroll.content.x, scroll.content.y + slide, scroll.content.width);
 		if (grid != null) { grid.viewTop = top; grid.viewBottom = bottom; }
 		for (ModelTile tile : grid == null ? List.<ModelTile>of() : grid.tiles()) if (tile.selected.getAsBoolean()) { tile.yaw = previewYaw; tile.pitch = previewPitch; }
 		scroll.render(surface);
 		if (grid != null && grid.isEmpty()) drawEmpty(graphics, left, top, right - left);
-		AstolfoUi.alpha = previous;
+		MirageUi.alpha = previous;
 		inspector.visible = page.loadout();
 		if (inspector.visible) {
 			inspector.layout(W - PAD - INSPECTOR, top, INSPECTOR);
@@ -526,10 +525,10 @@ public final class ModelMirageScreen extends Screen {
 		else if (page.kind == CatalogModel.Kind.PLAYER) { title = "Моделей игроков пока нет"; hint = "Добавь модель kind: player в каталог"; }
 		else { title = "Каталог пуст"; hint = "Проверь подключение и нажми обновить"; }
 		float cx = left + width / 2, cy = top + 110;
-		AstolfoUi.shape(graphics, cx - 20, cy - 46, 40, 40, 12, 0, Theme.CARD, Theme.CARD);
-		AstolfoUi.ICONS.draw(graphics, page.icon, cx - 8, cy - 34, 16, Theme.TEXT_TERTIARY);
-		AstolfoUi.SEMIBOLD.draw(graphics, title, cx - AstolfoUi.SEMIBOLD.width(title, 10) / 2, cy + 4, 10, Theme.TEXT);
-		AstolfoUi.MEDIUM.draw(graphics, hint, cx - AstolfoUi.MEDIUM.width(hint, Theme.BODY) / 2, cy + 20, Theme.BODY, Theme.TEXT_SECONDARY);
+		MirageUi.shape(graphics, cx - 20, cy - 46, 40, 40, 12, 0, Theme.CARD, Theme.CARD);
+		MirageUi.ICONS.draw(graphics, page.icon, cx - 8, cy - 34, 16, Theme.TEXT_TERTIARY);
+		MirageUi.SEMIBOLD.draw(graphics, title, cx - MirageUi.SEMIBOLD.width(title, 10) / 2, cy + 4, 10, Theme.TEXT);
+		MirageUi.MEDIUM.draw(graphics, hint, cx - MirageUi.MEDIUM.width(hint, Theme.BODY) / 2, cy + 20, Theme.BODY, Theme.TEXT_SECONDARY);
 	}
 
 	private void drawToast(GuiGraphicsExtractor graphics) {
@@ -537,18 +536,18 @@ public final class ModelMirageScreen extends Screen {
 		float age = (System.currentTimeMillis() - toastTime) / 1000f;
 		float fade = Math.clamp(Math.min(age * 6, (2.6f - age) * 3), 0, 1);
 		if (age > 2.6f) { toast = ""; return; }
-		float previous = AstolfoUi.alpha;
-		AstolfoUi.alpha = previous * fade;
+		float previous = MirageUi.alpha;
+		MirageUi.alpha = previous * fade;
 		// On loadout pages the toast centres over the grid so it never covers the inspector buttons.
 		float right = page.loadout() ? W - PAD - INSPECTOR : W;
-		float w = AstolfoUi.SEMIBOLD.width(toast, Theme.BODY) + 34, x = SIDE + (right - SIDE - w) / 2, y = H - 40 + (1 - fade) * 8;
-		AstolfoUi.shadow(graphics, x, y, w, 24, 12);
-		AstolfoUi.glass(graphics, x, y, w, 24, 12, 14, Theme.POPUP_TINT);
-		AstolfoUi.shape(graphics, x, y, w, 24, 12, 0.8f, 0x26FFFFFF, 0x0AFFFFFF);
+		float w = MirageUi.SEMIBOLD.width(toast, Theme.BODY) + 34, x = SIDE + (right - SIDE - w) / 2, y = H - 40 + (1 - fade) * 8;
+		MirageUi.shadow(graphics, x, y, w, 24, 12);
+		MirageUi.glass(graphics, x, y, w, 24, 12, 14, Theme.POPUP_TINT);
+		MirageUi.shape(graphics, x, y, w, 24, 12, 0.8f, 0x26FFFFFF, 0x0AFFFFFF);
 		int dot = toastError ? Theme.DANGER : Theme.SUCCESS;
-		AstolfoUi.shape(graphics, x + 12, y + 10, 4, 4, 2, 0, dot, dot);
-		AstolfoUi.SEMIBOLD.draw(graphics, toast, x + 22, Paint.centeredTextY(y, 24, Theme.BODY), Theme.BODY, Theme.TEXT);
-		AstolfoUi.alpha = previous;
+		MirageUi.shape(graphics, x + 12, y + 10, 4, 4, 2, 0, dot, dot);
+		MirageUi.SEMIBOLD.draw(graphics, toast, x + 22, Paint.centeredTextY(y, 24, Theme.BODY), Theme.BODY, Theme.TEXT);
+		MirageUi.alpha = previous;
 	}
 
 	private void drawPlayer(GuiGraphicsExtractor graphics, boolean others, float x0, float y0, float x1, float y1) {
@@ -692,15 +691,15 @@ public final class ModelMirageScreen extends Screen {
 		public void render(Surface surface) {
 			var graphics = surface.graphics;
 			if (page == null) {
-				AstolfoUi.SEMIBOLD.draw(graphics, section.label.toUpperCase(Locale.ROOT), x + 8, y + 7, 6.5f, Theme.TEXT_TERTIARY);
+				MirageUi.SEMIBOLD.draw(graphics, section.label.toUpperCase(Locale.ROOT), x + 8, y + 7, 6.5f, Theme.TEXT_TERTIARY);
 				return;
 			}
 			updateHover(surface);
 			boolean current = ModelMirageScreen.this.page == page;
-			if (!current && hover > 0.01f) AstolfoUi.shape(graphics, x, y, width, height, 7, 0, AstolfoUi.opacity(Theme.HOVER, hover), AstolfoUi.opacity(Theme.HOVER, hover));
-			int color = current ? Theme.TEXT : AstolfoUi.mix(Theme.TEXT_SECONDARY, Theme.TEXT, hover * 0.6f);
-			AstolfoUi.ICONS.draw(graphics, page.icon, x + 12, y + 7, 10, current ? Theme.accent() : color);
-			AstolfoUi.SEMIBOLD.draw(graphics, page.label, x + 30, Paint.centeredTextY(y, height, Theme.BODY), Theme.BODY, color);
+			if (!current && hover > 0.01f) MirageUi.shape(graphics, x, y, width, height, 7, 0, MirageUi.opacity(Theme.HOVER, hover), MirageUi.opacity(Theme.HOVER, hover));
+			int color = current ? Theme.TEXT : MirageUi.mix(Theme.TEXT_SECONDARY, Theme.TEXT, hover * 0.6f);
+			MirageUi.ICONS.draw(graphics, page.icon, x + 12, y + 7, 10, current ? Theme.accent() : color);
+			MirageUi.SEMIBOLD.draw(graphics, page.label, x + 30, Paint.centeredTextY(y, height, Theme.BODY), Theme.BODY, color);
 			if (page == Page.APPLIED) {
 				int count = ItemModelOverrides.count();
 				for (CosmeticSelections.Slot slot : CosmeticSelections.Slot.values()) if (CosmeticSelections.isSet(slot)) count++;
@@ -726,31 +725,31 @@ public final class ModelMirageScreen extends Screen {
 			height = 24;
 			float cy = y + 12;
 			if (page == Page.ITEMS && selectedItem != null) {
-				float backWidth = AstolfoUi.BOLD.width(page.label, Theme.TITLE) + 14;
+				float backWidth = MirageUi.BOLD.width(page.label, Theme.TITLE) + 14;
 				boolean over = surface.mouseX >= x && surface.mouseX < x + backWidth && surface.mouseY >= y && surface.mouseY < y + height;
-				backHover = AstolfoUi.animate(backHover, over ? 1 : 0, 18, surface.delta);
+				backHover = MirageUi.animate(backHover, over ? 1 : 0, 18, surface.delta);
 				graphics.pose().pushMatrix();
 				graphics.pose().translate(x + 4, cy);
 				graphics.pose().rotate((float) Math.PI / 2);
 				graphics.pose().translate(-x - 4, -cy);
-				Paint.chevron(graphics, x + 4, cy, 0, AstolfoUi.mix(Theme.TEXT_SECONDARY, Theme.accent(), backHover));
+				Paint.chevron(graphics, x + 4, cy, 0, MirageUi.mix(Theme.TEXT_SECONDARY, Theme.accent(), backHover));
 				graphics.pose().popMatrix();
-				AstolfoUi.BOLD.draw(graphics, page.label, x + 12, cy - Theme.TITLE / 2 - 0.5f, Theme.TITLE, AstolfoUi.mix(Theme.TEXT_SECONDARY, Theme.accent(), backHover));
+				MirageUi.BOLD.draw(graphics, page.label, x + 12, cy - Theme.TITLE / 2 - 0.5f, Theme.TITLE, MirageUi.mix(Theme.TEXT_SECONDARY, Theme.accent(), backHover));
 				float after = x + backWidth + 4;
-				AstolfoUi.BOLD.draw(graphics, "/", after, cy - Theme.TITLE / 2 - 0.5f, Theme.TITLE, Theme.TEXT_TERTIARY);
-				String name = AstolfoUi.BOLD.fit(itemName(selectedItem), Theme.TITLE, 200);
-				AstolfoUi.BOLD.draw(graphics, name, after + 12, cy - Theme.TITLE / 2 - 0.5f, Theme.TITLE, Theme.TEXT);
-				width = after + 12 + AstolfoUi.BOLD.width(name, Theme.TITLE) - x;
+				MirageUi.BOLD.draw(graphics, "/", after, cy - Theme.TITLE / 2 - 0.5f, Theme.TITLE, Theme.TEXT_TERTIARY);
+				String name = MirageUi.BOLD.fit(itemName(selectedItem), Theme.TITLE, 200);
+				MirageUi.BOLD.draw(graphics, name, after + 12, cy - Theme.TITLE / 2 - 0.5f, Theme.TITLE, Theme.TEXT);
+				width = after + 12 + MirageUi.BOLD.width(name, Theme.TITLE) - x;
 			} else {
-				AstolfoUi.BOLD.draw(graphics, page.label, x, cy - Theme.TITLE / 2 - 0.5f, Theme.TITLE, Theme.TEXT);
-				width = AstolfoUi.BOLD.width(page.label, Theme.TITLE);
+				MirageUi.BOLD.draw(graphics, page.label, x, cy - Theme.TITLE / 2 - 0.5f, Theme.TITLE, Theme.TEXT);
+				width = MirageUi.BOLD.width(page.label, Theme.TITLE);
 			}
 		}
 
 		@Override
 		public boolean mouseClicked(Surface surface, double mouseX, double mouseY, int button) {
 			if (button != 0 || page != Page.ITEMS || selectedItem == null || !contains(mouseX, mouseY)) return false;
-			if (mouseX < x + AstolfoUi.BOLD.width(page.label, Theme.TITLE) + 14) { back(); return true; }
+			if (mouseX < x + MirageUi.BOLD.width(page.label, Theme.TITLE) + 14) { back(); return true; }
 			return false;
 		}
 	}
@@ -775,11 +774,11 @@ public final class ModelMirageScreen extends Screen {
 		public void render(Surface surface) {
 			updateHover(surface);
 			var graphics = surface.graphics;
-			if (hover > 0.01f) AstolfoUi.shape(graphics, x + 4, y + 1, width - 8, height - 2, 6, 0, AstolfoUi.opacity(Theme.HOVER, hover), AstolfoUi.opacity(Theme.HOVER, hover));
+			if (hover > 0.01f) MirageUi.shape(graphics, x + 4, y + 1, width - 8, height - 2, 6, 0, MirageUi.opacity(Theme.HOVER, hover), MirageUi.opacity(Theme.HOVER, hover));
 			float textX = x + 12;
 			if (!icon.isEmpty()) { graphics.item(icon, Math.round(x + 10), Math.round(y + 7)); textX += 22; }
-			AstolfoUi.SEMIBOLD.draw(graphics, AstolfoUi.SEMIBOLD.fit(label, Theme.BODY, width * 0.55f), textX, y + 6, Theme.BODY, Theme.TEXT);
-			AstolfoUi.MEDIUM.draw(graphics, AstolfoUi.MEDIUM.fit(model, Theme.CAPTION, width * 0.55f), textX, y + 17, Theme.CAPTION, Theme.TEXT_SECONDARY);
+			MirageUi.SEMIBOLD.draw(graphics, MirageUi.SEMIBOLD.fit(label, Theme.BODY, width * 0.55f), textX, y + 6, Theme.BODY, Theme.TEXT);
+			MirageUi.MEDIUM.draw(graphics, MirageUi.MEDIUM.fit(model, Theme.CAPTION, width * 0.55f), textX, y + 17, Theme.CAPTION, Theme.TEXT_SECONDARY);
 			renderControl(surface);
 		}
 
@@ -801,8 +800,8 @@ public final class ModelMirageScreen extends Screen {
 		private final Button apply = new Button("Применить", Button.Style.PRIMARY, ModelMirageScreen.this::applyOrRetry);
 		private final Button reset = new Button("Сброс", Button.Style.SECONDARY, ModelMirageScreen.this::resetSelection);
 		private final Group mascot = new Group()
-				.add(new ToggleRow("Показывать в HUD", () -> Visuals.enabled("BoyKisser"), value -> { Visuals.module("BoyKisser").enabled = value; changed(); }))
-				.add(new KeyRow("Клавиша", () -> Visuals.module("BoyKisser").bind, key -> { Visuals.module("BoyKisser").bind = key; changed(); }))
+				.add(new ToggleRow("Показывать в HUD", () -> Visuals.enabled("Mascot"), value -> { Visuals.module("Mascot").enabled = value; changed(); }))
+				.add(new KeyRow("Клавиша", () -> Visuals.module("Mascot").bind, key -> { Visuals.module("Mascot").bind = key; changed(); }))
 				.add(new ButtonRow("Расположение", "Изменить", ModelMirageScreen.this::openEditor));
 		private boolean rotating;
 		private float previewTop, previewHeight;
@@ -815,21 +814,21 @@ public final class ModelMirageScreen extends Screen {
 		@Override
 		public void render(Surface surface) {
 			var graphics = surface.graphics;
-			AstolfoUi.shape(graphics, x, y, width, height, Theme.RADIUS_CARD + 2, 0, Theme.CARD, Theme.CARD);
-			AstolfoUi.shape(graphics, x, y, width, height, Theme.RADIUS_CARD + 2, 0.8f, Theme.CARD_STROKE, 0x0AFFFFFF);
-			AstolfoUi.SEMIBOLD.draw(graphics, "ПРЕДПРОСМОТР", x + 12, y + 11, Theme.CAPTION, Theme.TEXT_TERTIARY);
+			MirageUi.shape(graphics, x, y, width, height, Theme.RADIUS_CARD + 2, 0, Theme.CARD, Theme.CARD);
+			MirageUi.shape(graphics, x, y, width, height, Theme.RADIUS_CARD + 2, 0.8f, Theme.CARD_STROKE, 0x0AFFFFFF);
+			MirageUi.SEMIBOLD.draw(graphics, "ПРЕДПРОСМОТР", x + 12, y + 11, Theme.CAPTION, Theme.TEXT_TERTIARY);
 			if (page != Page.MASCOTS && (page.slot != null || selectedModel != null && CatalogService.isLoaded(selectedModel)))
-				AstolfoUi.MEDIUM.draw(graphics, "Тяни, чтобы вращать", x + width - 12 - AstolfoUi.MEDIUM.width("Тяни, чтобы вращать", 6.5f), y + 11.5f, 6.5f, Theme.TEXT_TERTIARY);
+				MirageUi.MEDIUM.draw(graphics, "Тяни, чтобы вращать", x + width - 12 - MirageUi.MEDIUM.width("Тяни, чтобы вращать", 6.5f), y + 11.5f, 6.5f, Theme.TEXT_TERTIARY);
 			previewTop = y + 26;
 			previewHeight = page == Page.MASCOTS ? 150 : 196;
 			float px = x + 8, pw = width - 16;
-			AstolfoUi.shape(graphics, px, previewTop, pw, previewHeight, 9, 0, 0x0FFFFFFF, 0x05FFFFFF);
+			MirageUi.shape(graphics, px, previewTop, pw, previewHeight, 9, 0, 0x0FFFFFFF, 0x05FFFFFF);
 			drawPreview(graphics, px, previewTop, pw, previewHeight);
 			float textY = previewTop + previewHeight + 10;
 			String title = selectedModel != null ? selectedModel.name() : page == Page.ITEMS ? selectedItem == null ? "Выбери предмет" : itemName(selectedItem) : "Обычный вид";
-			AstolfoUi.BOLD.draw(graphics, AstolfoUi.BOLD.fit(title, 10.5f, width - 24), x + 12, textY, 10.5f, Theme.TEXT);
+			MirageUi.BOLD.draw(graphics, MirageUi.BOLD.fit(title, 10.5f, width - 24), x + 12, textY, 10.5f, Theme.TEXT);
 			String subtitle = subtitle();
-			AstolfoUi.MEDIUM.draw(graphics, AstolfoUi.MEDIUM.fit(subtitle, Theme.CAPTION, width - 24), x + 12, textY + 15, Theme.CAPTION, failed ? Theme.DANGER : Theme.TEXT_SECONDARY);
+			MirageUi.MEDIUM.draw(graphics, MirageUi.MEDIUM.fit(subtitle, Theme.CAPTION, width - 24), x + 12, textY + 15, Theme.CAPTION, failed ? Theme.DANGER : Theme.TEXT_SECONDARY);
 			float buttonsY = y + height - 38;
 			if (page == Page.MASCOTS) {
 				mascot.layout(x + 6, textY + 28, width - 12);
@@ -863,7 +862,7 @@ public final class ModelMirageScreen extends Screen {
 				Identifier preview = selectedModel != null && CatalogService.isLoaded(selectedModel) ? selectedModel.modelId() : CosmeticSelections.selected(CosmeticSelections.Slot.MASCOT);
 				float ratio = Math.min((pw - 40) / MascotAnimations.width(preview), (ph - 24) / MascotAnimations.height(preview));
 				int w = Math.round(MascotAnimations.width(preview) * ratio), h = Math.round(MascotAnimations.height(preview) * ratio);
-				MascotAnimations.draw(graphics, preview, Math.round(cx - w / 2f), Math.round(cy - h / 2f), w, h, AstolfoUi.opacity(0xFFFFFFFF, AstolfoUi.alpha));
+				MascotAnimations.draw(graphics, preview, Math.round(cx - w / 2f), Math.round(cy - h / 2f), w, h, MirageUi.opacity(0xFFFFFFFF, MirageUi.alpha));
 			} else if (selectedModel != null && CatalogService.isLoaded(selectedModel) && !(page.slot != null && isApplied(selectedModel))) {
 				RuntimeModels.preview(graphics, selectedModel.modelId(), cx, cy, 120, previewYaw, previewPitch);
 			} else if (page.slot != null) {
@@ -877,9 +876,9 @@ public final class ModelMirageScreen extends Screen {
 				graphics.item(new ItemStack(selectedItem), 0, 0);
 				graphics.pose().popMatrix();
 			} else {
-				AstolfoUi.ICONS.draw(graphics, "E", cx - 12, cy - 18, 24, Theme.TEXT_TERTIARY);
+				MirageUi.ICONS.draw(graphics, "E", cx - 12, cy - 18, 24, Theme.TEXT_TERTIARY);
 				String hint = "Предмет не выбран";
-				AstolfoUi.MEDIUM.draw(graphics, hint, cx - AstolfoUi.MEDIUM.width(hint, Theme.BODY) / 2, cy + 12, Theme.BODY, Theme.TEXT_TERTIARY);
+				MirageUi.MEDIUM.draw(graphics, hint, cx - MirageUi.MEDIUM.width(hint, Theme.BODY) / 2, cy + 12, Theme.BODY, Theme.TEXT_TERTIARY);
 			}
 			graphics.disableScissor();
 		}
