@@ -7,6 +7,7 @@ import dev.modelmirage.client.gui.MirageUi;
 import dev.modelmirage.client.gui.kit.ButtonRow;
 import dev.modelmirage.client.gui.kit.Group;
 import dev.modelmirage.client.gui.kit.Settings;
+import dev.modelmirage.client.gui.kit.SliderRow;
 import dev.modelmirage.client.gui.kit.Surface;
 import dev.modelmirage.client.gui.kit.Theme;
 import dev.modelmirage.client.gui.kit.ToggleRow;
@@ -26,17 +27,23 @@ import org.slf4j.LoggerFactory;
 /** Layout editing while the chat is open: dragging, snapping, element switches, panel settings and persistence. */
 public final class HudInteraction {
 	/** GUI pixels: distance kept from the window edges, gap between neighbours, snap reach and grid step. */
-	static final float MARGIN = 4, GAP = 4, SNAP = 5, GRID = 8;
+	static final float MARGIN = 4, GAP = 4, SNAP = 3, GRID = 8;
+	/** Fabric does not report double clicks to chat listeners; two presses on one panel this close count as one. */
+	private static final long DOUBLE_CLICK_NANOS = 300_000_000L;
+	/** Panel zoom per mouse wheel notch. */
+	private static final float WHEEL_STEP = 0.1f;
 	/** Every HUD element with only its on/off switch; settings stay in the right-click popover. */
 	private final Group elements = new Group().title(Lang.tr("modelmirage.hud.editor.elements"));
 	private final Surface listSurface = new Surface();
 	private final String legend = Lang.tr("modelmirage.hud.editor.legend");
 	private float listScale = 1;
 	private final Deque<Map<String, HudLayout.Position>> history = new ArrayDeque<>();
-	/** Watermark element under the press; it is reordered once the drag goes sideways. */
+	/** Watermark element under a Ctrl press; it is reordered once the drag goes sideways. */
 	private String pendingChip;
+	private String lastClickPanel;
+	private long lastClickTime;
 	private boolean reordering;
-	private double pressX, pressY;
+	private double pressX;
 	private String selected;
 	private boolean dragging;
 	private boolean dirty;
@@ -58,7 +65,7 @@ public final class HudInteraction {
 		}
 	}
 
-	public boolean click(MouseButtonEvent event, boolean doubleClick, int width, int height) {
+	public boolean click(MouseButtonEvent event, int width, int height) {
 		double listX = event.x() / listScale, listY = event.y() / listScale;
 		if (popover == null && elements.contains(listX, listY)) { listSurface.mouseClicked(List.of(elements), listX, listY, event.button()); return true; }
 		if (popover != null) {
@@ -78,14 +85,18 @@ public final class HudInteraction {
 			selected = panel.id();
 			if (event.button() == 1) { openPopover(panel); return true; }
 			if (event.button() != 0) return false;
+			long now = System.nanoTime();
+			boolean doubleClick = panel.id().equals(lastClickPanel) && now - lastClickTime < DOUBLE_CLICK_NANOS;
+			lastClickPanel = doubleClick ? null : panel.id();
+			lastClickTime = now;
 			remember();
 			if (doubleClick) { move(panel, (width - panel.screenWidth()) / 2, panel.screenY(), width, height); save(); return true; }
 			dragging = true;
 			offsetX = (float) event.x() - panel.screenX();
 			offsetY = (float) event.y() - panel.screenY();
 			pressX = event.x();
-			pressY = event.y();
-			pendingChip = panel.module().equals("Watermark") ? VisualHud.watermarkChips().stream().filter(chip -> chip.contains(event.x(), event.y()))
+			// A plain drag always moves the panel; Ctrl picks up one watermark element to reorder it.
+			pendingChip = panel.module().equals("Watermark") && event.hasControlDown() ? VisualHud.watermarkChips().stream().filter(chip -> chip.contains(event.x(), event.y()))
 					.map(VisualHud.ChipBox::key).findFirst().orElse(null) : null;
 			return true;
 		}
@@ -99,10 +110,9 @@ public final class HudInteraction {
 		var panel = selectedPanel();
 		if (panel == null) { dragging = false; return false; }
 		if (pendingChip != null && !reordering) {
-			// Sideways inside the watermark reorders its elements; pulling it away moves the whole panel.
-			if (Math.abs(event.y() - pressY) > panel.screenHeight() * 0.75f) pendingChip = null;
-			else if (Math.abs(event.x() - pressX) > 3) { reordering = true; VisualHud.draggedChip = pendingChip; }
-			else return true;
+			if (Math.abs(event.x() - pressX) <= 2) return true;
+			reordering = true;
+			VisualHud.draggedChip = pendingChip;
 		}
 		if (reordering) { reorder(event.x()); return true; }
 		guideX = guideY = -1;
@@ -194,16 +204,20 @@ public final class HudInteraction {
 			if (!panel.contains(x, y)) continue;
 			selected = panel.id();
 			remember();
-			float zoom = Math.clamp(panel.zoom() + (float) amount * 0.05f, 0.5f, 2);
-			float ratio = zoom / panel.zoom();
-			// Keep the top-left corner where it is while the size changes.
-			move(panel, panel.screenX(), panel.screenY(), width, height);
-			HudLayout.scale(selected, zoom);
-			place(selected, panel.screenX(), panel.screenY(), panel.screenWidth() * ratio, panel.screenHeight() * ratio, width, height);
+			zoom(panel, panel.zoom() + (float) amount * WHEEL_STEP, width, height);
 			save();
 			return true;
 		}
 		return false;
+	}
+
+	/** Sets a panel's own scale on top of the global HUD scale, keeping its top-left corner in place. */
+	private void zoom(VisualHud.Panel panel, float value, int width, int height) {
+		float zoom = Math.clamp(value, 0.5f, 2);
+		float ratio = zoom / panel.zoom();
+		move(panel, panel.screenX(), panel.screenY(), width, height);
+		HudLayout.scale(panel.id(), zoom);
+		place(panel.id(), panel.screenX(), panel.screenY(), panel.screenWidth() * ratio, panel.screenHeight() * ratio, width, height);
 	}
 
 	/** While the popover is open it owns the keyboard (key binding, Esc); returns true when the key was taken. */
@@ -231,6 +245,11 @@ public final class HudInteraction {
 		remember(); move(panel, panel.screenX() + dx, panel.screenY() + dy, width, height); save(); return true;
 	}
 
+	/** The panel as drawn this frame, or the given one while it is hidden. */
+	private static VisualHud.Panel currentPanel(VisualHud.Panel panel) {
+		return VisualHud.panels().stream().filter(current -> current.id().equals(panel.id())).findFirst().orElse(panel);
+	}
+
 	private VisualHud.Panel selectedPanel() { return VisualHud.panels().stream().filter(panel -> panel.id().equals(selected)).findFirst().orElse(null); }
 	private void remember() { if (history.size() == 32) history.removeFirst(); history.addLast(HudLayout.snapshot()); }
 
@@ -243,6 +262,14 @@ public final class HudInteraction {
 	private void openPopover(VisualHud.Panel panel) {
 		closePopover();
 		var group = Settings.module(Visuals.module(panel.module()), this::settingsChanged);
+		// Reads the live panel: it is rebuilt every frame and the slider must follow wheel zooming too.
+		group.add(new SliderRow(Lang.tr("modelmirage.hud.scale"), 50, 200, 5, "%", () -> Math.round(currentPanel(panel).zoom() * 100), value -> {
+			var current = currentPanel(panel);
+			if (Math.abs(current.zoom() * 100 - value) < 0.5) return;
+			Minecraft client = Minecraft.getInstance();
+			zoom(current, (float) value / 100, client.getWindow().getGuiScaledWidth(), client.getWindow().getGuiScaledHeight());
+			dirty = true;
+		}));
 		group.add(new ButtonRow(Lang.tr("modelmirage.hud.position"), Lang.tr("modelmirage.action.reset"), () -> { remember(); HudLayout.reset(panel.id()); dirty = true; save(); }));
 		popover = new HudPopover(group, panel);
 		surface = new Surface();
@@ -333,26 +360,36 @@ public final class HudInteraction {
 	private void drawElements(GuiGraphicsExtractor graphics, double mouseX, double mouseY) {
 		listScale = 1.6f / (float) Minecraft.getInstance().getWindow().getGuiScale();
 		float viewWidth = graphics.guiWidth() / listScale, viewHeight = graphics.guiHeight() / listScale;
+		// Legend lines are "key: action"; keys form a bright column, actions a dimmer one.
+		float size = 9, lineHeight = 14, padding = 9;
+		String[] lines = legend.split(" \\| ");
+		String[] keys = new String[lines.length], actions = new String[lines.length];
+		float keyWidth = 0, actionWidth = 0;
+		for (int i = 0; i < lines.length; i++) {
+			int colon = lines[i].indexOf(": ");
+			keys[i] = colon < 0 ? "" : lines[i].substring(0, colon);
+			actions[i] = colon < 0 ? lines[i] : lines[i].substring(colon + 2);
+			keyWidth = Math.max(keyWidth, MirageUi.SEMIBOLD.width(keys[i], size));
+			actionWidth = Math.max(actionWidth, MirageUi.MEDIUM.width(actions[i], size));
+		}
+		float legendWidth = padding * 2 + keyWidth + 10 + actionWidth, legendHeight = padding * 2 + lines.length * lineHeight - 4;
 		float listWidth = 150;
 		float listHeight = elements.layout(0, 0, listWidth);
-		elements.layout(viewWidth - listWidth - 10, Math.max(40, (viewHeight - listHeight) / 2), listWidth);
+		elements.layout(viewWidth - listWidth - 10, Math.max(legendHeight + 18, (viewHeight - listHeight) / 2), listWidth);
 		graphics.pose().pushMatrix();
 		graphics.pose().scale(listScale, listScale);
 		listSurface.begin(graphics, mouseX / listScale, mouseY / listScale);
 		MirageUi.shadow(graphics, elements.x, elements.y, elements.width, elements.height, Theme.RADIUS_CARD);
 		MirageUi.glass(graphics, elements.x, elements.y, elements.width, elements.height, Theme.RADIUS_CARD, VisualPreferences.blur, Theme.POPUP_TINT);
 		elements.render(listSurface);
-		float size = 6.5f, lineHeight = 10;
-		String[] lines = legend.split(" \\| ");
-		float y = elements.y - 8 - lines.length * lineHeight;
-		float legendWidth = 0;
-		for (String text : lines) legendWidth = Math.max(legendWidth, MirageUi.MEDIUM.width(text, size));
+		float right = elements.x + elements.width, left = right - legendWidth, top = elements.y - 8 - legendHeight;
 		// Glass behind the legend keeps it readable over a bright sky.
-		MirageUi.glass(graphics, elements.x + elements.width - legendWidth - 16, y - 6, legendWidth + 16, lines.length * lineHeight + 10, 8,
-				VisualPreferences.blur, Theme.POPUP_TINT);
-		y -= 0.5f;
-		for (String text : lines) {
-			MirageUi.MEDIUM.draw(graphics, text, elements.x + elements.width - 8 - MirageUi.MEDIUM.width(text, size), y, size, Theme.TEXT_SECONDARY);
+		MirageUi.shadow(graphics, left, top, legendWidth, legendHeight, Theme.RADIUS_CARD);
+		MirageUi.glass(graphics, left, top, legendWidth, legendHeight, Theme.RADIUS_CARD, VisualPreferences.blur, Theme.POPUP_TINT);
+		float y = top + padding;
+		for (int i = 0; i < lines.length; i++) {
+			MirageUi.SEMIBOLD.draw(graphics, keys[i], left + padding, y, size, Theme.TEXT);
+			MirageUi.MEDIUM.draw(graphics, actions[i], left + padding + keyWidth + 10, y, size, Theme.TEXT_SECONDARY);
 			y += lineHeight;
 		}
 		graphics.pose().popMatrix();
