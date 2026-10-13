@@ -141,25 +141,33 @@ public final class MirageUi {
 
 	public static final class Face {
 		private final String name;
+		private final Identifier location;
 		private final Map<Integer, Glyph> glyphs = new HashMap<>();
-		private int atlasWidth;
-		private int atlasHeight;
 		private boolean loaded;
-		private Face(String name) { this.name = name; }
+		private Face(String name) {
+			this.name = name;
+			location = Identifier.fromNamespaceAndPath("modelmirage", "ui/fonts/" + name + ".png");
+		}
 
 		private void load() {
 			if (loaded) return;
 			Identifier data = Identifier.fromNamespaceAndPath("modelmirage", "ui/fonts/" + name + ".json");
 			try (var reader = Minecraft.getInstance().getResourceManager().getResourceOrThrow(data).openAsReader()) {
 				JsonObject root = JsonParser.parseReader(reader).getAsJsonObject();
-				atlasWidth = root.getAsJsonObject("atlas").get("width").getAsInt();
-				atlasHeight = root.getAsJsonObject("atlas").get("height").getAsInt();
+				float atlasWidth = root.getAsJsonObject("atlas").get("width").getAsInt();
+				float atlasHeight = root.getAsJsonObject("atlas").get("height").getAsInt();
 				int index = 0;
 				for (var entry : root.getAsJsonArray("glyphs")) {
 					JsonObject glyph = entry.getAsJsonObject();
 					int code = glyph.has("unicode") ? glyph.get("unicode").getAsInt() : 65 + index;
 					index++;
-					glyphs.put(code, new Glyph(glyph.get("advance").getAsFloat(), glyph.getAsJsonObject("planeBounds"), glyph.getAsJsonObject("atlasBounds")));
+					float advance = glyph.get("advance").getAsFloat();
+					JsonObject plane = glyph.getAsJsonObject("planeBounds"), atlas = glyph.getAsJsonObject("atlasBounds");
+					// Bounds are read once here: drawing runs for every character of every HUD frame.
+					glyphs.put(code, plane == null || atlas == null ? new Glyph(advance, false, 0, 0, 0, 0, 0, 0, 0, 0) : new Glyph(advance, true,
+							plane.get("left").getAsFloat(), plane.get("top").getAsFloat(), plane.get("right").getAsFloat(), plane.get("bottom").getAsFloat(),
+							atlas.get("left").getAsFloat() / atlasWidth, atlas.get("right").getAsFloat() / atlasWidth,
+							1f - atlas.get("top").getAsFloat() / atlasHeight, 1f - atlas.get("bottom").getAsFloat() / atlasHeight));
 				}
 				loaded = true;
 			} catch (IOException | RuntimeException error) {
@@ -186,27 +194,21 @@ public final class MirageUi {
 		public void draw(GuiGraphicsExtractor graphics, String text, float x, float y, float size, int color) {
 			load();
 			color = opacity(color, alpha);
-			Identifier location = Identifier.fromNamespaceAndPath("modelmirage", "ui/fonts/" + name + ".png");
 			var texture = Minecraft.getInstance().getTextureManager().getTexture(location);
 			TextureSetup setup = TextureSetup.singleTexture(texture.getTextureView(), RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));
 			for (int code : text.codePoints().toArray()) {
 				Glyph glyph = glyphs.getOrDefault(code, glyphs.get(63));
 				if (glyph == null) { x += size * 0.5f; continue; }
-				if (glyph.plane() != null && glyph.atlas() != null) {
-					JsonObject plane = glyph.plane();
-					JsonObject atlas = glyph.atlas();
-					float left = plane.get("left").getAsFloat();
-					float top = plane.get("top").getAsFloat();
-					Matrix3x2f pose = new Matrix3x2f(graphics.pose()).translate(x + left * size, y + (0.8f - top) * size)
-							.scale((plane.get("right").getAsFloat() - left) * size, (top - plane.get("bottom").getAsFloat()) * size);
+				if (glyph.visible()) {
+					Matrix3x2f pose = new Matrix3x2f(graphics.pose()).translate(x + glyph.left() * size, y + (0.8f - glyph.top()) * size)
+							.scale((glyph.right() - glyph.left()) * size, (glyph.top() - glyph.bottom()) * size);
 					graphics.guiRenderState.addGuiElement(new BlitRenderState(MSDF, setup, pose, 0, 0, 1, 1,
-							atlas.get("left").getAsFloat() / atlasWidth, atlas.get("right").getAsFloat() / atlasWidth,
-							1f - atlas.get("top").getAsFloat() / atlasHeight, 1f - atlas.get("bottom").getAsFloat() / atlasHeight,
-							color, graphics.scissorStack.peek()));
+							glyph.u0(), glyph.u1(), glyph.v0(), glyph.v1(), color, graphics.scissorStack.peek()));
 				}
 				x += glyph.advance() * size;
 			}
 		}
-		private record Glyph(float advance, JsonObject plane, JsonObject atlas) { }
+		/** Plane bounds in em units and atlas texture coordinates; invisible glyphs (spaces) only advance. */
+		private record Glyph(float advance, boolean visible, float left, float top, float right, float bottom, float u0, float u1, float v0, float v1) { }
 	}
 }
