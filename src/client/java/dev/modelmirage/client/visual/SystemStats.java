@@ -1,6 +1,10 @@
 package dev.modelmirage.client.visual;
 
-import java.lang.management.ManagementFactory;
+import com.sun.jna.Platform;
+import com.sun.jna.platform.win32.BaseTSD;
+import com.sun.jna.platform.win32.Pdh;
+import com.sun.jna.platform.win32.WinNT.HANDLE;
+import com.sun.jna.platform.win32.WinNT.HANDLEByReference;
 import java.util.Arrays;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -12,7 +16,7 @@ import oshi.hardware.CentralProcessor;
 
 /**
  * Machine and connection numbers for the watermark. Slow probes (CPU load and clock) run on a daemon thread
- * every two seconds and only while the watermark shows them, so the render thread only reads volatile fields.
+ * every second and only while the watermark shows them, so the render thread only reads volatile fields.
  */
 public final class SystemStats {
 	private static final int FRAMES = 1000;
@@ -29,9 +33,14 @@ public final class SystemStats {
 	private static long lastSample;
 	private static double shownGpu = -1;
 	private static volatile float serverTps = -1;
-	private static ScheduledExecutorService probes;
+	private static volatile ScheduledExecutorService probes;
 	private static CentralProcessor processor;
-	private static boolean probeWarned;
+	private static long[] cpuTicks;
+	/** Windows performance counter of the actual clock as a share of the base clock; null when not opened or failed. */
+	private static HANDLE clockQuery;
+	private static HANDLE clockCounter;
+	private static long clockValue, clockBase;
+	private static boolean probeWarned, clockWarned;
 
 	private SystemStats() { }
 
@@ -131,25 +140,31 @@ public final class SystemStats {
 	static long usedMemory() { Runtime runtime = Runtime.getRuntime(); return runtime.totalMemory() - runtime.freeMemory(); }
 	static long maxMemory() { return Runtime.getRuntime().maxMemory(); }
 
-	private static synchronized void ensureProbes() {
+	private static void ensureProbes() {
+		// Checked without the lock first: this runs every frame while CPU values are shown.
 		if (probes != null) return;
-		probes = Executors.newSingleThreadScheduledExecutor(Thread.ofPlatform().daemon().name("ModelMirage-stats").factory());
-		probes.scheduleWithFixedDelay(SystemStats::probe, 0, 2, TimeUnit.SECONDS);
+		synchronized (SystemStats.class) {
+			if (probes != null) return;
+			var executor = Executors.newSingleThreadScheduledExecutor(Thread.ofPlatform().daemon().name("ModelMirage-stats").factory());
+			executor.scheduleWithFixedDelay(SystemStats::probe, 0, 1, TimeUnit.SECONDS);
+			probes = executor;
+		}
 	}
 
 	private static void probe() {
 		if (!probesWanted) return;
 		probesWanted = false;
 		try {
-			if (ManagementFactory.getOperatingSystemMXBean() instanceof com.sun.management.OperatingSystemMXBean os) {
-				double load = os.getCpuLoad();
-				if (load >= 0) cpuLoad = load * 100;
+			if (processor == null) {
+				processor = new SystemInfo().getHardware().getProcessor();
+				cpuTicks = processor.getSystemCpuLoadTicks();
+				if (Platform.isWindows()) openClockCounter();
+				return;
 			}
-			if (processor == null) processor = new SystemInfo().getHardware().getProcessor();
-			long[] current = processor.getCurrentFreq();
-			long sum = 0, count = 0;
-			for (long hz : current) if (hz > 0) { sum += hz; count++; }
-			long hz = count > 0 ? sum / count : processor.getMaxFreq();
+			// The JMX system load reports -1 on some Windows machines; OSHI's tick counters work everywhere.
+			cpuLoad = processor.getSystemCpuLoadBetweenTicks(cpuTicks) * 100;
+			cpuTicks = processor.getSystemCpuLoadTicks();
+			long hz = clockQuery != null ? windowsClock() : averageClock();
 			cpuGhz = hz > 0 ? hz / 1e9 : -1;
 		} catch (RuntimeException | LinkageError failure) {
 			// Unsupported platforms keep the last value and the chip shows a dash; say why once.
@@ -158,6 +173,62 @@ public final class SystemStats {
 		}
 	}
 
+	/** Linux reports the live clock per core; elsewhere OSHI may only know the base clock. */
+	private static long averageClock() {
+		long sum = 0, count = 0;
+		for (long hz : processor.getCurrentFreq()) if (hz > 0) { sum += hz; count++; }
+		return count > 0 ? sum / count : processor.getMaxFreq();
+	}
+
+	/**
+	 * Windows only reports the base clock directly. "% Processor Performance" is the actual clock relative to it
+	 * (above 100 while boosting); the English counter name works on localised systems too.
+	 */
+	private static void openClockCounter() {
+		HANDLEByReference query = new HANDLEByReference(), counter = new HANDLEByReference();
+		int status = Pdh.INSTANCE.PdhOpenQuery(null, null, query);
+		if (status == 0) {
+			status = Pdh.INSTANCE.PdhAddEnglishCounter(query.getValue(), "\\Processor Information(_Total)\\% Processor Performance", new BaseTSD.DWORD_PTR(0), counter);
+			if (status != 0) Pdh.INSTANCE.PdhCloseQuery(query.getValue());
+		}
+		if (status != 0) { warnClock(status); return; }
+		clockQuery = query.getValue();
+		clockCounter = counter.getValue();
+		windowsClock();
+	}
+
+	/** The counter's raw value and base both grow; their ratio between two samples is the average performance share. */
+	private static long windowsClock() {
+		Pdh.PDH_RAW_COUNTER raw = new Pdh.PDH_RAW_COUNTER();
+		int status = Pdh.INSTANCE.PdhCollectQueryData(clockQuery);
+		if (status == 0) status = Pdh.INSTANCE.PdhGetRawCounterValue(clockCounter, null, raw);
+		// PDH_CSTATUS_VALID_DATA (0) and PDH_CSTATUS_NEW_DATA (1) are both usable samples.
+		if (status == 0 && raw.CStatus > 1) status = raw.CStatus;
+		if (status != 0) {
+			warnClock(status);
+			closeClockCounter();
+			return averageClock();
+		}
+		long value = raw.FirstValue - clockValue, base = raw.SecondValue - clockBase;
+		boolean first = clockBase == 0;
+		clockValue = raw.FirstValue;
+		clockBase = raw.SecondValue;
+		if (first || base <= 0 || value < 0) return averageClock();
+		return Math.round(processor.getMaxFreq() * (value / (double) base) / 100);
+	}
+
+	private static void warnClock(int status) {
+		if (!clockWarned) LoggerFactory.getLogger("ModelMirage").warn("CPU clock counter unavailable (PDH status 0x{}); showing the base clock", Integer.toHexString(status));
+		clockWarned = true;
+	}
+
+	private static void closeClockCounter() {
+		if (clockQuery != null) Pdh.INSTANCE.PdhCloseQuery(clockQuery);
+		clockQuery = null;
+		clockCounter = null;
+	}
+
+	/** The game is exiting; Windows releases the clock counter with the process. */
 	public static void close() {
 		if (probes != null) probes.shutdownNow();
 	}
