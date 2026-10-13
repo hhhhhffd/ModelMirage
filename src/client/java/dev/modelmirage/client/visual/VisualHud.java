@@ -51,9 +51,10 @@ public final class VisualHud {
 	private static final float CHIP_GAP = 15;
 	/** Space between row elements; the watermark's density changes it while it draws. */
 	private static float chipGap = CHIP_GAP;
-	private static final String SIGNAL = "signal";
-	private static final int SIGNAL_WIDTH = 11;
 	private static final int HEAD_SIZE = 14;
+	private static final int WIFI_WIDTH = 12;
+	/** Ping drawn by the watermark's Wi-Fi icon this frame. */
+	private static int wifiPing;
 	private static final Pattern DIGITS = Pattern.compile("[1-9]");
 	private static final List<ChipBox> WATERMARK_CHIPS = new ArrayList<>();
 	/** nanoTime until which a "only when it matters" watermark element stays, so it does not blink at the threshold. */
@@ -234,17 +235,23 @@ public final class VisualHud {
 		TEXT.computeIfAbsent(id, unused -> new AnimatedText()).draw(graphics, value, x, y, size, color);
 	}
 
-	/** One icon-and-value entry of a single-line panel; a null face means no icon, {@code head} the player's face instead. */
-	private record Chip(String key, MirageUi.Face face, String glyph, float iconSize, String value, boolean head) {
-		Chip(String key, MirageUi.Face face, String glyph, float iconSize, String value) { this(key, face, glyph, iconSize, value, false); }
+	/** Icons that are drawn rather than taken from a font. */
+	private enum Drawn { NONE, HEAD, WIFI }
+
+	/** One icon-and-value entry of a single-line panel; a null face and no drawn icon means no icon. */
+	private record Chip(String key, MirageUi.Face face, String glyph, float iconSize, String value, Drawn drawn) {
+		Chip(String key, MirageUi.Face face, String glyph, float iconSize, String value) { this(key, face, glyph, iconSize, value, Drawn.NONE); }
 	}
 
-	private static float iconWidth(Chip chip) { return chip.head ? HEAD_SIZE + 4 : chip.face == null ? 0 : chip.iconSize + 4; }
-
-	private static float chipWidth(Chip chip, float textSize) {
-		if (chip.key.equals(SIGNAL)) return SIGNAL_WIDTH;
-		return iconWidth(chip) + textWidth(chip.value, textSize);
+	private static float iconWidth(Chip chip) {
+		return switch (chip.drawn) {
+			case HEAD -> HEAD_SIZE + 4;
+			case WIFI -> WIFI_WIDTH + 4;
+			case NONE -> chip.face == null ? 0 : chip.iconSize + 4;
+		};
 	}
+
+	private static float chipWidth(Chip chip, float textSize) { return iconWidth(chip) + textWidth(chip.value, textSize); }
 
 	/** Every digit is measured as "0", the widest one, so a changing number does not resize and shift the panel. */
 	private static float textWidth(String value, float size) {
@@ -270,16 +277,14 @@ public final class VisualHud {
 					MirageUi.shape(graphics, x - 4, panel.y() + 3, chipWidth + 8, panel.height() - 6, 6, 0.8f, MirageUi.ACCENT, MirageUi.ACCENT);
 				}
 			}
-			if (chip.key.equals(SIGNAL)) {
-				signal(graphics, x, panel.y() + panel.height() / 2f + 4, Integer.parseInt(chip.value));
-				x += SIGNAL_WIDTH;
-			} else {
-				if (chip.head) face(graphics, Minecraft.getInstance().player, Math.round(x), Math.round(panel.y() + (panel.height() - HEAD_SIZE) / 2f), HEAD_SIZE);
-				else if (chip.face != null) icon(graphics, chip.face, chip.glyph, x, panel.y() + (panel.height() - chip.iconSize) / 2f, chip.iconSize);
-				x += iconWidth(chip);
-				animated(graphics, prefix + chip.key, chip.value, x, textY, textSize, Theme.TEXT);
-				x += textWidth(chip.value, textSize);
+			switch (chip.drawn) {
+				case HEAD -> face(graphics, Minecraft.getInstance().player, Math.round(x), Math.round(panel.y() + (panel.height() - HEAD_SIZE) / 2f), HEAD_SIZE);
+				case WIFI -> wifi(graphics, x + WIFI_WIDTH / 2f, panel.y() + panel.height() / 2f + 4, wifiPing);
+				case NONE -> { if (chip.face != null) icon(graphics, chip.face, chip.glyph, x, panel.y() + (panel.height() - chip.iconSize) / 2f, chip.iconSize); }
 			}
+			x += iconWidth(chip);
+			animated(graphics, prefix + chip.key, chip.value, x, textY, textSize, Theme.TEXT);
+			x += textWidth(chip.value, textSize);
 			if (i < chips.size() - 1) {
 				MirageUi.shape(graphics, x + chipGap / 2 - 0.9f, panel.y() + panel.height() / 2f - 0.9f, 1.8f, 1.8f, 0.9f, 0, Theme.TEXT_TERTIARY, Theme.TEXT_TERTIARY);
 				x += chipGap;
@@ -287,14 +292,24 @@ public final class VisualHud {
 		}
 	}
 
-	/** Four rising bars like a phone's signal: four below 60 ms, then one fewer per step, coloured from green to red. */
-	private static void signal(GuiGraphicsExtractor graphics, float x, float bottom, int ping) {
-		int bars = ping <= 60 ? 4 : ping <= 120 ? 3 : ping <= 220 ? 2 : 1;
-		int color = bars == 4 ? 0xFF4ADE80 : bars == 3 ? 0xFFA3E635 : bars == 2 ? 0xFFFACC15 : 0xFFF87171;
-		for (int i = 0; i < 4; i++) {
-			float height = 3 + i * 2;
-			int fill = i < bars ? color : 0x40FFFFFF;
-			MirageUi.shape(graphics, x + i * 3, bottom - height, 2, height, 0.6f, 0, fill, fill);
+	/**
+	 * Wi-Fi mark standing on {@code (centerX, bottom)}: a dot and three arcs light up like a phone's signal, all four
+	 * below 60 ms and one fewer per step, coloured from green to red. Arcs are rows of round dots along 45°–135°.
+	 */
+	private static void wifi(GuiGraphicsExtractor graphics, float centerX, float bottom, int ping) {
+		int lit = ping <= 60 ? 4 : ping <= 120 ? 3 : ping <= 220 ? 2 : 1;
+		int color = lit == 4 ? 0xFF4ADE80 : lit == 3 ? 0xFFA3E635 : lit == 2 ? 0xFFFACC15 : 0xFFF87171;
+		float stroke = 1.6f;
+		MirageUi.shape(graphics, centerX - 1.1f, bottom - 2.2f, 2.2f, 2.2f, 1.1f, 0, color, color);
+		for (int arc = 1; arc <= 3; arc++) {
+			float radius = 0.5f + arc * 2.6f;
+			int fill = arc < lit ? color : 0x40FFFFFF;
+			int steps = (int) Math.ceil(radius * Math.PI / 2 / 0.45f);
+			for (int step = 0; step <= steps; step++) {
+				double angle = Math.PI / 4 + Math.PI / 2 * step / steps;
+				float px = centerX + (float) (Math.cos(angle) * radius), py = bottom - 1.1f - (float) (Math.sin(angle) * radius);
+				MirageUi.shape(graphics, px - stroke / 2, py - stroke / 2, stroke, stroke, stroke / 2, 0, fill, fill);
+			}
 		}
 	}
 
@@ -304,17 +319,17 @@ public final class VisualHud {
 		var info = client.getConnection() == null ? null : client.getConnection().getPlayerInfo(client.player.getUUID());
 		Map<String, Chip> available = new HashMap<>();
 		available.put("title", new Chip("title", module.bool("showLogo") ? MirageUi.LOGO : null, "A", 14, "ModelMirage"));
-		if (module.bool("showPing")) available.put("ping", new Chip("ping", MirageUi.WATERMARK, "D", 9, (info == null ? 0 : info.getLatency()) + " MS"));
+		// Singleplayer has no network: the latency there is meaningless, so it reads as a perfect link.
+		wifiPing = client.hasSingleplayerServer() || info == null ? 0 : info.getLatency();
+		if (module.bool("showPing")) available.put("ping", new Chip("ping", null, "", 0, wifiPing + " MS", Drawn.WIFI));
 		if (module.bool("showFps")) {
 			String fps = client.getFps() + " FPS";
 			if (module.bool("showLowFps")) fps += "  1% " + SystemStats.lowFps();
 			available.put("fps", new Chip("fps", MirageUi.WATERMARK, "C", 9, fps));
 		}
 		if (module.bool("showName")) available.put("name", new Chip("name", MirageUi.WATERMARK, "A", 9,
-				MirageUi.SEMIBOLD.fit(client.player.getName().getString(), 8, 80), module.bool("showHead")));
+				MirageUi.SEMIBOLD.fit(client.player.getName().getString(), 8, 80), module.bool("showHead") ? Drawn.HEAD : Drawn.NONE));
 		if (module.bool("showTime")) available.put("time", new Chip("time", MirageUi.WATERMARK, "B", 9, LocalTime.now().format(TIME)));
-		int ping = client.hasSingleplayerServer() || info == null ? 0 : info.getLatency();
-		if (module.bool("showSignal")) available.put(SIGNAL, new Chip(SIGNAL, null, "", 0, String.valueOf(ping)));
 		if (module.bool("showCpu")) {
 			String cpu = "CPU " + percent(SystemStats.cpuLoad());
 			if (module.bool("showCpuClock")) {

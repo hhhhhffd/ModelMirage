@@ -203,7 +203,6 @@
   "modelmirage.hud.editor.elements": "Элементы HUD",
   "modelmirage.settings.hud_grid": "Сетка",
   "modelmirage.settings.hud_layout_hint": "Открой чат, чтобы двигать панели",
-  "modelmirage.module.Watermark.showSignal": "Сигнал",
   "modelmirage.module.Watermark.showLowFps": "FPS: 1%% low",
   "modelmirage.module.Watermark.showCpu": "Загрузка CPU",
   "modelmirage.module.Watermark.showCpuClock": "CPU: частота",

@@ -203,7 +203,6 @@
   "modelmirage.hud.editor.elements": "HUD elements",
   "modelmirage.settings.hud_grid": "Snap grid",
   "modelmirage.settings.hud_layout_hint": "Open the chat to move panels",
-  "modelmirage.module.Watermark.showSignal": "Signal",
   "modelmirage.module.Watermark.showLowFps": "FPS: 1%% low",
   "modelmirage.module.Watermark.showCpu": "CPU load",
   "modelmirage.module.Watermark.showCpuClock": "CPU: clock",

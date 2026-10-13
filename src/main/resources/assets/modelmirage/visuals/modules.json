@@ -97,12 +97,6 @@
         "group": "items"
       },
       {
-        "id": "showSignal",
-        "type": "boolean",
-        "value": true,
-        "group": "items"
-      },
-      {
         "id": "showCpu",
         "type": "boolean",
         "value": false,
@@ -207,7 +201,7 @@
       {
         "id": "order",
         "type": "order",
-        "value": "title,signal,ping,fps,name,time,cpu,gpu,tps,server,memory,speed,kdp,jitter,link"
+        "value": "title,ping,fps,name,time,cpu,gpu,tps,server,memory,speed,kdp,jitter,link"
       }
     ]
   },
