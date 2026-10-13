@@ -15,6 +15,9 @@ public final class SliderRow extends Row {
 	private final DoubleConsumer changed;
 	private float shown = -1, grab;
 	private boolean dragging;
+	/** Apply only when the drag ends; {@code pending} is the value shown meanwhile. */
+	private boolean deferred;
+	private double pending;
 
 	public SliderRow(String label, double min, double max, double step, String unit, DoubleSupplier value, DoubleConsumer changed) {
 		super(label);
@@ -26,6 +29,14 @@ public final class SliderRow extends Row {
 		this.changed = changed;
 	}
 
+	/**
+	 * Applies the value when the slider is released instead of while dragging, for settings whose change moves the
+	 * slider itself (a HUD panel's scale moves the popover beside it).
+	 */
+	public SliderRow deferred() { deferred = true; return this; }
+
+	private double current() { return deferred && dragging ? pending : value.getAsDouble(); }
+
 	@Override
 	protected float labelWidth() { return width * 0.42f - 14; }
 
@@ -36,7 +47,7 @@ public final class SliderRow extends Row {
 	@Override
 	protected void renderControl(Surface surface) {
 		var graphics = surface.graphics;
-		float target = (float) ((value.getAsDouble() - min) / (max - min));
+		float target = (float) ((current() - min) / (max - min));
 		shown = shown < 0 || dragging ? target : MirageUi.animate(shown, target, 20, surface.delta);
 		grab = MirageUi.animate(grab, dragging ? 1 : hover, 18, surface.delta);
 		float left = trackLeft(), right = trackRight(), cy = centerY();
@@ -47,7 +58,7 @@ public final class SliderRow extends Row {
 		float knobX = left + track * shown - knob / 2;
 		MirageUi.shape(graphics, knobX - 0.5f, cy - knob / 2 + 0.6f, knob + 1, knob + 1, (knob + 1) / 2, 0, 0x22000000, 0x44000000);
 		MirageUi.shape(graphics, knobX, cy - knob / 2, knob, knob, knob / 2, 0, Theme.KNOB, 0xFFF0F0F3);
-		String text = format(value.getAsDouble()) + unit;
+		String text = format(current()) + unit;
 		float box = boxWidth();
 		int fill = surface.isFocused(this) ? MirageUi.opacity(Theme.accent(), 0.25f) : Theme.CONTROL;
 		MirageUi.shape(graphics, right() - box, cy - 7.5f, box, 15, 4.5f, 0, fill, fill);
@@ -74,7 +85,10 @@ public final class SliderRow extends Row {
 	}
 
 	@Override
-	public void mouseReleased(Surface surface, double mouseX, double mouseY, int button) { dragging = false; }
+	public void mouseReleased(Surface surface, double mouseX, double mouseY, int button) {
+		if (deferred && dragging) changed.accept(pending);
+		dragging = false;
+	}
 
 	@Override
 	public boolean keyPressed(Surface surface, KeyEvent event) {
@@ -87,7 +101,9 @@ public final class SliderRow extends Row {
 	private void slide(double mouseX) {
 		double progress = Math.clamp((mouseX - trackLeft()) / (trackRight() - trackLeft()), 0, 1);
 		double raw = min + progress * (max - min);
-		changed.accept(Math.clamp(min + Math.round((raw - min) / step) * step, min, max));
+		double next = Math.clamp(min + Math.round((raw - min) / step) * step, min, max);
+		if (deferred) pending = next;
+		else changed.accept(next);
 	}
 
 	private String format(double number) {

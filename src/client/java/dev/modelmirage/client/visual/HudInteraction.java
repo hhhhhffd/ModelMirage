@@ -269,7 +269,7 @@ public final class HudInteraction {
 			Minecraft client = Minecraft.getInstance();
 			zoom(current, (float) value / 100, client.getWindow().getGuiScaledWidth(), client.getWindow().getGuiScaledHeight());
 			dirty = true;
-		}));
+		}).deferred());
 		group.add(new ButtonRow(Lang.tr("modelmirage.hud.position"), Lang.tr("modelmirage.action.reset"), () -> { remember(); HudLayout.reset(panel.id()); dirty = true; save(); }));
 		popover = new HudPopover(group, panel);
 		surface = new Surface();
