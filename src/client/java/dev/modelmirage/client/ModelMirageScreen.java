@@ -18,14 +18,12 @@ import dev.modelmirage.client.gui.kit.Paint;
 import dev.modelmirage.client.gui.kit.Row;
 import dev.modelmirage.client.gui.kit.ScrollView;
 import dev.modelmirage.client.gui.kit.SearchField;
-import dev.modelmirage.client.gui.kit.Settings;
 import dev.modelmirage.client.gui.kit.SliderRow;
 import dev.modelmirage.client.gui.kit.Surface;
 import dev.modelmirage.client.gui.kit.Theme;
 import dev.modelmirage.client.gui.kit.ToggleRow;
 import dev.modelmirage.client.render.MascotAnimations;
 import dev.modelmirage.client.render.RuntimeModels;
-import dev.modelmirage.client.visual.VisualModule;
 import dev.modelmirage.client.visual.VisualPreferences;
 import dev.modelmirage.client.visual.Visuals;
 import java.io.IOException;
@@ -177,31 +175,11 @@ public final class ModelMirageScreen extends Screen {
 		}
 		Columns columns = new Columns();
 		switch (page) {
-			case HUD -> {
-				// Scale, glass and the global switch live in Settings; this page holds the panels and the crosshair.
-				int index = 0;
-				for (VisualModule module : Visuals.modules()) {
-					if (!(module.isPanel() || module.id.equals("Crosshair")) || !matches(module, query)) continue;
-					Group group = Settings.module(module, this::changed);
-					// Both columns start with a caption line so their first cards line up.
-					if (index == 0) group.caption("G", Lang.tr("modelmirage.caption.panels"));
-					else if (index == 1) group.caption("", " ");
-					index++;
-					columns.children.add(group);
-				}
-			}
 			case APPLIED -> buildApplied(columns, query);
 			case SETTINGS -> buildSettings(columns, query);
 			default -> throw new IllegalStateException("Unexpected page " + page);
 		}
 		scroll.content = columns;
-	}
-
-	private static boolean matches(VisualModule module, String query) {
-		if (query.isEmpty()) return true;
-		StringBuilder text = new StringBuilder(module.id).append(' ').append(module.name());
-		for (VisualModule.Setting setting : module.settings.values()) text.append(' ').append(setting.name());
-		return text.toString().toLowerCase(Locale.ROOT).contains(query);
 	}
 
 	private void buildApplied(Columns columns, String query) {
@@ -655,8 +633,8 @@ public final class ModelMirageScreen extends Screen {
 	private static String itemName(Item item) { return Component.translatable(item.getDescriptionId()).getString(); }
 
 	private enum Section {
-		LOADOUT, VISUALS, SYSTEM;
-		String label() { return switch (this) { case LOADOUT -> Lang.tr("modelmirage.section.loadout"); case VISUALS -> Lang.tr("modelmirage.section.visuals"); case SYSTEM -> Lang.tr("modelmirage.section.system"); }; }
+		LOADOUT, SYSTEM;
+		String label() { return switch (this) { case LOADOUT -> Lang.tr("modelmirage.section.loadout"); case SYSTEM -> Lang.tr("modelmirage.section.system"); }; }
 	}
 
 	private enum Page {
@@ -664,7 +642,6 @@ public final class ModelMirageScreen extends Screen {
 		SELF("L", Section.LOADOUT, CatalogModel.Kind.PLAYER, CosmeticSelections.Slot.SELF),
 		OTHERS("L", Section.LOADOUT, CatalogModel.Kind.PLAYER, CosmeticSelections.Slot.OTHERS),
 		MASCOTS("K", Section.LOADOUT, CatalogModel.Kind.MASCOT, CosmeticSelections.Slot.MASCOT),
-		HUD("G", Section.VISUALS, null, null),
 		APPLIED("D", Section.SYSTEM, null, null),
 		SETTINGS("J", Section.SYSTEM, null, null);
 		final String icon;
@@ -681,7 +658,6 @@ public final class ModelMirageScreen extends Screen {
 				case SELF -> Lang.tr("modelmirage.page.self");
 				case OTHERS -> Lang.tr("modelmirage.page.others");
 				case MASCOTS -> Lang.tr("modelmirage.page.mascots");
-				case HUD -> Lang.tr("modelmirage.page.hud");
 				case APPLIED -> Lang.tr("modelmirage.page.applied");
 				case SETTINGS -> Lang.tr("modelmirage.page.settings");
 			};

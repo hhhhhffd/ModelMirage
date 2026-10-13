@@ -34,6 +34,8 @@ public final class HudInteraction {
 	private static final float WHEEL_STEP = 0.1f;
 	/** Every HUD element with only its on/off switch; settings stay in the right-click popover. */
 	private final Group elements = new Group().title(Lang.tr("modelmirage.hud.editor.elements"));
+	/** Module of each row of {@link #elements}, in the same order. */
+	private final List<VisualModule> elementModules = new ArrayList<>();
 	private final Surface listSurface = new Surface();
 	private final String legend = Lang.tr("modelmirage.hud.editor.legend");
 	private float listScale = 1;
@@ -62,12 +64,21 @@ public final class HudInteraction {
 		for (VisualModule module : Visuals.modules()) {
 			if (!module.isPanel() && !module.category.equals("mascot") && !module.id.equals("Crosshair")) continue;
 			elements.add(new ToggleRow(module.name(), () -> module.enabled, value -> { module.enabled = value; settingsChanged(); }));
+			elementModules.add(module);
 		}
 	}
 
 	public boolean click(MouseButtonEvent event, int width, int height) {
 		double listX = event.x() / listScale, listY = event.y() / listScale;
-		if (popover == null && elements.contains(listX, listY)) { listSurface.mouseClicked(List.of(elements), listX, listY, event.button()); return true; }
+		if (popover == null && elements.contains(listX, listY)) {
+			// Right click on a row opens that element's settings; the crosshair has no panel to click on the HUD.
+			if (event.button() == 1) for (int i = 0; i < elements.rows.size(); i++) {
+				var row = elements.rows.get(i);
+				if (row.contains(listX, listY)) { openListPopover(elementModules.get(i), row.x, row.y, row.width, row.height); return true; }
+			}
+			listSurface.mouseClicked(List.of(elements), listX, listY, event.button());
+			return true;
+		}
 		if (popover != null) {
 			pointer(event.x(), event.y());
 			// A dropdown inside the popover is the surface's popup: it takes the click (and closes on an outside one).
@@ -258,6 +269,16 @@ public final class HudInteraction {
 	private float popoverScale = 1;
 	private float local(double coordinate) { return (float) coordinate / popoverScale; }
 	private void pointer(double x, double y) { surface.mouseX = local(x); surface.mouseY = local(y); }
+
+	/** Settings of a module opened from its list row: beside its panel when it is shown, else beside the row. */
+	private void openListPopover(VisualModule module, float x, float y, float width, float height) {
+		var shown = VisualHud.panels().stream().filter(panel -> panel.module().equals(module.id)).findFirst();
+		if (shown.isPresent()) { selected = shown.get().id(); openPopover(shown.get()); return; }
+		var row = new VisualHud.Panel("list:" + module.id, module.id, module.name(), Math.round(x), Math.round(y), Math.round(width), Math.round(height), listScale, 1);
+		closePopover();
+		popover = new HudPopover(Settings.module(module, this::settingsChanged), row);
+		surface = new Surface();
+	}
 
 	private void openPopover(VisualHud.Panel panel) {
 		closePopover();
