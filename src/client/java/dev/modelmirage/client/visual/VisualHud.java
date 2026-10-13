@@ -14,6 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Pattern;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.minecraft.client.DeltaTracker;
@@ -50,11 +51,17 @@ public final class VisualHud {
 	private static final float CHIP_GAP = 15;
 	/** Space between row elements; the watermark's density changes it while it draws. */
 	private static float chipGap = CHIP_GAP;
-	private static final String HEAD = "head";
 	private static final String SIGNAL = "signal";
 	private static final int SIGNAL_WIDTH = 11;
 	private static final int HEAD_SIZE = 14;
+	private static final Pattern DIGITS = Pattern.compile("[1-9]");
 	private static final List<ChipBox> WATERMARK_CHIPS = new ArrayList<>();
+	/** nanoTime until which a "only when it matters" watermark element stays, so it does not blink at the threshold. */
+	private static final Map<String, Long> ALERTS = new HashMap<>();
+	private static final long ALERT_HOLD = 5_000_000_000L;
+	/** Below this share of the target tick rate the server counts as lagging. */
+	private static final float TPS_ALERT = 0.95f;
+	private static final float JITTER_ALERT_MS = 20;
 	/** Watermark element being dragged to a new place; highlighted while set. */
 	static String draggedChip;
 	private static float hudScale = 1;
@@ -227,13 +234,21 @@ public final class VisualHud {
 		TEXT.computeIfAbsent(id, unused -> new AnimatedText()).draw(graphics, value, x, y, size, color);
 	}
 
-	/** One icon-and-value entry of a single-line panel; a null face means no icon. */
-	private record Chip(String key, MirageUi.Face face, String glyph, float iconSize, String value) { }
+	/** One icon-and-value entry of a single-line panel; a null face means no icon, {@code head} the player's face instead. */
+	private record Chip(String key, MirageUi.Face face, String glyph, float iconSize, String value, boolean head) {
+		Chip(String key, MirageUi.Face face, String glyph, float iconSize, String value) { this(key, face, glyph, iconSize, value, false); }
+	}
+
+	private static float iconWidth(Chip chip) { return chip.head ? HEAD_SIZE + 4 : chip.face == null ? 0 : chip.iconSize + 4; }
 
 	private static float chipWidth(Chip chip, float textSize) {
-		if (chip.key.equals(HEAD)) return HEAD_SIZE;
 		if (chip.key.equals(SIGNAL)) return SIGNAL_WIDTH;
-		return (chip.face == null ? 0 : chip.iconSize + 4) + MirageUi.SEMIBOLD.width(chip.value, textSize);
+		return iconWidth(chip) + textWidth(chip.value, textSize);
+	}
+
+	/** Every digit is measured as "0", the widest one, so a changing number does not resize and shift the panel. */
+	private static float textWidth(String value, float size) {
+		return MirageUi.SEMIBOLD.width(DIGITS.matcher(value).replaceAll("0"), size);
 	}
 
 	private static float rowWidth(List<Chip> chips, float textSize) {
@@ -255,19 +270,15 @@ public final class VisualHud {
 					MirageUi.shape(graphics, x - 4, panel.y() + 3, chipWidth + 8, panel.height() - 6, 6, 0.8f, MirageUi.ACCENT, MirageUi.ACCENT);
 				}
 			}
-			if (chip.key.equals(HEAD)) {
-				face(graphics, Minecraft.getInstance().player, Math.round(x), Math.round(panel.y() + (panel.height() - HEAD_SIZE) / 2f), HEAD_SIZE);
-				x += HEAD_SIZE;
-			} else if (chip.key.equals(SIGNAL)) {
+			if (chip.key.equals(SIGNAL)) {
 				signal(graphics, x, panel.y() + panel.height() / 2f + 4, Integer.parseInt(chip.value));
 				x += SIGNAL_WIDTH;
-			} else if (chip.face != null) {
-				icon(graphics, chip.face, chip.glyph, x, panel.y() + (panel.height() - chip.iconSize) / 2f, chip.iconSize);
-				x += chip.iconSize + 4;
-			}
-			if (!chip.key.equals(HEAD) && !chip.key.equals(SIGNAL)) {
+			} else {
+				if (chip.head) face(graphics, Minecraft.getInstance().player, Math.round(x), Math.round(panel.y() + (panel.height() - HEAD_SIZE) / 2f), HEAD_SIZE);
+				else if (chip.face != null) icon(graphics, chip.face, chip.glyph, x, panel.y() + (panel.height() - chip.iconSize) / 2f, chip.iconSize);
+				x += iconWidth(chip);
 				animated(graphics, prefix + chip.key, chip.value, x, textY, textSize, Theme.TEXT);
-				x += MirageUi.SEMIBOLD.width(chip.value, textSize);
+				x += textWidth(chip.value, textSize);
 			}
 			if (i < chips.size() - 1) {
 				MirageUi.shape(graphics, x + chipGap / 2 - 0.9f, panel.y() + panel.height() / 2f - 0.9f, 1.8f, 1.8f, 0.9f, 0, Theme.TEXT_TERTIARY, Theme.TEXT_TERTIARY);
@@ -294,41 +305,57 @@ public final class VisualHud {
 		Map<String, Chip> available = new HashMap<>();
 		available.put("title", new Chip("title", module.bool("showLogo") ? MirageUi.LOGO : null, "A", 14, "ModelMirage"));
 		if (module.bool("showPing")) available.put("ping", new Chip("ping", MirageUi.WATERMARK, "D", 9, (info == null ? 0 : info.getLatency()) + " MS"));
-		if (module.bool("showFps")) available.put("fps", new Chip("fps", MirageUi.WATERMARK, "C", 9, client.getFps() + " FPS"));
-		if (module.bool("showName")) available.put("name", new Chip("name", MirageUi.WATERMARK, "B", 9, MirageUi.SEMIBOLD.fit(client.player.getName().getString(), 8, 80)));
-		if (module.bool("showTime")) available.put("time", new Chip("time", null, "", 0, LocalTime.now().format(TIME)));
-		if (module.bool("showHead")) available.put(HEAD, new Chip(HEAD, null, "", 0, ""));
+		if (module.bool("showFps")) {
+			String fps = client.getFps() + " FPS";
+			if (module.bool("showLowFps")) fps += "  1% " + SystemStats.lowFps();
+			available.put("fps", new Chip("fps", MirageUi.WATERMARK, "C", 9, fps));
+		}
+		if (module.bool("showName")) available.put("name", new Chip("name", MirageUi.WATERMARK, "A", 9,
+				MirageUi.SEMIBOLD.fit(client.player.getName().getString(), 8, 80), module.bool("showHead")));
+		if (module.bool("showTime")) available.put("time", new Chip("time", MirageUi.WATERMARK, "B", 9, LocalTime.now().format(TIME)));
 		int ping = client.hasSingleplayerServer() || info == null ? 0 : info.getLatency();
 		if (module.bool("showSignal")) available.put(SIGNAL, new Chip(SIGNAL, null, "", 0, String.valueOf(ping)));
-		if (module.bool("showLowFps")) available.put("low", new Chip("low", null, "", 0, "1% " + SystemStats.lowFps()));
-		if (module.bool("showCpu")) available.put("cpu", new Chip("cpu", null, "", 0, "CPU " + percent(SystemStats.cpuLoad())));
-		if (module.bool("showCpuClock")) {
-			double ghz = SystemStats.cpuGhz();
-			available.put("clock", new Chip("clock", null, "", 0, ghz < 0 ? "- GHz" : String.format(Locale.ROOT, "%.2f GHz", ghz)));
+		if (module.bool("showCpu")) {
+			String cpu = "CPU " + percent(SystemStats.cpuLoad());
+			if (module.bool("showCpuClock")) {
+				double ghz = SystemStats.cpuGhz();
+				cpu += ghz < 0 ? "  - GHz" : String.format(Locale.ROOT, "  %.2f GHz", ghz);
+			}
+			available.put("cpu", new Chip("cpu", MirageUi.WATERMARK, "G", 9, cpu));
 		}
 		boolean gpu = module.bool("showGpu") && on("Watermark", editor);
 		SystemStats.wantGpu(gpu);
-		if (gpu) available.put("gpu", new Chip("gpu", null, "", 0, "GPU " + percent(SystemStats.gpuLoad())));
+		if (gpu) available.put("gpu", new Chip("gpu", MirageUi.WATERMARK, "I", 9, "GPU " + percent(SystemStats.gpuLoad())));
+		// TPS and ping jitter only matter when they are bad, so they appear then and the watermark stays short otherwise.
 		if (module.bool("showTps")) {
 			float tps = SystemStats.tps();
-			available.put("tps", new Chip("tps", null, "", 0, tps < 0 ? "- TPS" : String.format(Locale.ROOT, "%.1f TPS", tps)));
+			float target = client.level == null ? 20 : client.level.tickRateManager().tickrate();
+			if (editor || alert("tps", tps >= 0 && tps < target * TPS_ALERT)) {
+				available.put("tps", new Chip("tps", MirageUi.ICONS, "J", 9, tps < 0 ? "- TPS" : String.format(Locale.ROOT, "%.1f TPS", tps)));
+			}
 		}
-		if (module.bool("showServer")) available.put("server", new Chip("server", null, "", 0, MirageUi.SEMIBOLD.fit(SystemStats.server(), 8, 110)));
-		if (module.bool("showMemory")) available.put("memory", new Chip("memory", null, "", 0,
+		if (module.bool("showServer")) available.put("server", new Chip("server", MirageUi.WATERMARK, "E", 9, MirageUi.SEMIBOLD.fit(SystemStats.server(), 8, 110)));
+		if (module.bool("showMemory")) available.put("memory", new Chip("memory", MirageUi.WATERMARK, "F", 9,
 				String.format(Locale.ROOT, "%.1f/%.1f GB", SystemStats.usedMemory() / 1073741824.0, SystemStats.maxMemory() / 1073741824.0)));
-		if (module.bool("showSpeed")) available.put("speed", new Chip("speed", null, "", 0, String.format(Locale.ROOT, "%.2f BPS", speed)));
-		// Session counts, kills/deaths: players, totems we popped/ours that popped, mobs.
-		if (module.bool("showKdPlayers")) available.put("kdp", new Chip("kdp", null, "", 0, "PVP " + CombatStats.players()));
-		if (module.bool("showTotems")) available.put("totems", new Chip("totems", null, "", 0, "TOTEMS " + CombatStats.totems()));
-		if (module.bool("showKdMobs")) available.put("kdm", new Chip("kdm", null, "", 0, "PVE " + CombatStats.mobs()));
+		if (module.bool("showSpeed")) available.put("speed", new Chip("speed", MirageUi.INTERFACE, "B", 8, String.format(Locale.ROOT, "%.2f BPS", speed)));
+		// Session counts, kills/deaths/assists: players, then mobs and totems (popped/lost/assisted) when chosen.
+		if (module.bool("showKdPlayers")) {
+			String kda = "PVP " + CombatStats.players();
+			if (module.bool("showKdMobs")) kda += "  PVE " + CombatStats.mobs();
+			if (module.bool("showTotems")) kda += "  TOT " + CombatStats.totems();
+			available.put("kdp", new Chip("kdp", MirageUi.ICONS, "K", 9, kda));
+		}
 		if (module.bool("showJitter")) {
 			float jitter = SystemStats.jitter();
-			available.put("jitter", new Chip("jitter", null, "", 0, jitter < 0 ? "VAR - MS" : "VAR " + Math.round(jitter) + " MS"));
+			if (editor || alert("jitter", jitter >= JITTER_ALERT_MS)) {
+				available.put("jitter", new Chip("jitter", MirageUi.INTERFACE, "S", 8, jitter < 0 ? "VAR - MS" : "VAR " + Math.round(jitter) + " MS"));
+			}
 		}
-		// Shown only while the server is silent, so the watermark stays short when everything is fine.
+		// Shown only while the server is silent.
 		float silence = SystemStats.silence();
 		if (module.bool("showConnection") && (silence > 0 || editor)) {
-			available.put("link", new Chip("link", null, "", 0, Lang.tr("modelmirage.hud.no_link", String.format(Locale.ROOT, "%.1f", editor && silence == 0 ? 3f : silence))));
+			available.put("link", new Chip("link", MirageUi.INTERFACE, "S", 8,
+					Lang.tr("modelmirage.hud.no_link", String.format(Locale.ROOT, "%.1f", editor && silence == 0 ? 3f : silence))));
 		}
 		List<Chip> chips = new ArrayList<>();
 		for (String key : module.order("order")) if (available.containsKey(key)) chips.add(available.get(key));
@@ -340,6 +367,14 @@ public final class VisualHud {
 		drawRow(graphics, panel, chips, 8, panel.x() + 9, "watermark", WATERMARK_CHIPS);
 		chipGap = CHIP_GAP;
 		end(graphics);
+	}
+
+	/** True while {@code bad} holds and for a few seconds after it last did. */
+	private static boolean alert(String key, boolean bad) {
+		long now = System.nanoTime();
+		if (bad) ALERTS.put(key, now + ALERT_HOLD);
+		Long until = ALERTS.get(key);
+		return until != null && now - until < 0;
 	}
 
 	private static void info(GuiGraphicsExtractor graphics, boolean editor, int height) {

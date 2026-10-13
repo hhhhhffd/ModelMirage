@@ -97,31 +97,13 @@
         "group": "items"
       },
       {
-        "id": "showHead",
-        "type": "boolean",
-        "value": true,
-        "group": "items"
-      },
-      {
         "id": "showSignal",
         "type": "boolean",
         "value": true,
         "group": "items"
       },
       {
-        "id": "showLowFps",
-        "type": "boolean",
-        "value": false,
-        "group": "items"
-      },
-      {
         "id": "showCpu",
-        "type": "boolean",
-        "value": false,
-        "group": "items"
-      },
-      {
-        "id": "showCpuClock",
         "type": "boolean",
         "value": false,
         "group": "items"
@@ -163,18 +145,6 @@
         "group": "items"
       },
       {
-        "id": "showTotems",
-        "type": "boolean",
-        "value": false,
-        "group": "items"
-      },
-      {
-        "id": "showKdMobs",
-        "type": "boolean",
-        "value": false,
-        "group": "items"
-      },
-      {
         "id": "showJitter",
         "type": "boolean",
         "value": false,
@@ -185,6 +155,36 @@
         "type": "boolean",
         "value": false,
         "group": "items"
+      },
+      {
+        "id": "showHead",
+        "type": "boolean",
+        "value": true,
+        "when": "showName"
+      },
+      {
+        "id": "showLowFps",
+        "type": "boolean",
+        "value": false,
+        "when": "showFps"
+      },
+      {
+        "id": "showCpuClock",
+        "type": "boolean",
+        "value": false,
+        "when": "showCpu"
+      },
+      {
+        "id": "showKdMobs",
+        "type": "boolean",
+        "value": false,
+        "when": "showKdPlayers"
+      },
+      {
+        "id": "showTotems",
+        "type": "boolean",
+        "value": false,
+        "when": "showKdPlayers"
       },
       {
         "id": "resetPvp",
@@ -207,7 +207,7 @@
       {
         "id": "order",
         "type": "order",
-        "value": "title,signal,ping,fps,low,name,time,head,cpu,clock,gpu,tps,server,memory,speed,kdp,totems,kdm,jitter,link"
+        "value": "title,signal,ping,fps,name,time,cpu,gpu,tps,server,memory,speed,kdp,jitter,link"
       }
     ]
   },
