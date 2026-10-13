@@ -73,12 +73,16 @@ public final class SystemStats {
 	/** Minecraft only times the GPU while F3 asks for it; the watermark asks too while it shows the value. */
 	public static boolean gpuWanted() { return gpuWanted; }
 	static void wantGpu(boolean wanted) { gpuWanted = wanted; }
-	/** Sampled once a second; the raw value changes every frame and the digits would never settle. */
+	/**
+	 * Sampled once a second; the raw value changes every frame and the digits would never settle. Minecraft divides
+	 * GPU time by frame time, which passes 100 when the GPU works on several frames at once, so it is capped there.
+	 */
 	static double gpuLoad() {
 		long now = System.nanoTime();
 		if (now - lastSample > 1_000_000_000L) {
 			lastSample = now;
-			shownGpu = Minecraft.getInstance().getGpuUtilization();
+			double load = Minecraft.getInstance().getGpuUtilization();
+			shownGpu = load < 0 ? load : Math.min(100, load);
 		}
 		return shownGpu;
 	}
