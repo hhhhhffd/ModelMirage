@@ -154,30 +154,35 @@
         "id": "showHead",
         "type": "boolean",
         "value": true,
+        "group": "items",
         "when": "showName"
       },
       {
         "id": "showLowFps",
         "type": "boolean",
         "value": false,
+        "group": "items",
         "when": "showFps"
       },
       {
         "id": "showCpuClock",
         "type": "boolean",
         "value": false,
+        "group": "items",
         "when": "showCpu"
       },
       {
         "id": "showKdMobs",
         "type": "boolean",
         "value": false,
+        "group": "items",
         "when": "showKdPlayers"
       },
       {
         "id": "showTotems",
         "type": "boolean",
         "value": false,
+        "group": "items",
         "when": "showKdPlayers"
       },
       {

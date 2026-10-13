@@ -29,6 +29,14 @@ public final class Settings {
 		};
 	}
 
+	private static boolean isOption(VisualModule module, VisualModule.Setting member) {
+		return member.when != null && module.settings.containsKey(member.when) && member.group.equals(module.setting(member.when).group);
+	}
+
+	private static ChecklistRow.Entry entry(VisualModule.Setting setting, Runnable changed, List<ChecklistRow.Entry> options) {
+		return new ChecklistRow.Entry(setting.name(), () -> setting.value.getAsBoolean(), value -> { setting.set(new JsonPrimitive(value)); changed.run(); }, options);
+	}
+
 	/** Card with the module switch in its header, one row per setting and a key binding row. */
 	public static Group module(VisualModule module, Runnable changed) {
 		Group group = new Group().title(module.name()).toggle(() -> module.enabled, value -> { module.enabled = value; changed.run(); });
@@ -39,10 +47,15 @@ public final class Settings {
 			if (setting.group == null) { group.add(row(setting, changed)); continue; }
 			if (listed) continue;
 			listed = true;
+			// A member whose "when" names another member refines it, and is listed under it instead of beside it.
 			List<ChecklistRow.Entry> entries = new ArrayList<>();
 			for (VisualModule.Setting member : module.settings.values()) {
-				if (!setting.group.equals(member.group)) continue;
-				entries.add(new ChecklistRow.Entry(member.name(), () -> member.value.getAsBoolean(), value -> { member.set(new JsonPrimitive(value)); changed.run(); }));
+				if (!setting.group.equals(member.group) || isOption(module, member)) continue;
+				List<ChecklistRow.Entry> options = new ArrayList<>();
+				for (VisualModule.Setting option : module.settings.values()) {
+					if (setting.group.equals(option.group) && member.id.equals(option.when)) options.add(entry(option, changed, List.of()));
+				}
+				entries.add(entry(member, changed, options));
 			}
 			group.add(new ChecklistRow(Lang.tr("modelmirage.row.items"), entries));
 		}
