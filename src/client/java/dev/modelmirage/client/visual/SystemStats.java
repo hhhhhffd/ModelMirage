@@ -28,7 +28,12 @@ public final class SystemStats {
 	private static volatile double cpuLoad = -1;
 	private static volatile double cpuGhz = -1;
 	private static volatile boolean gpuWanted;
-	private static long serverGameTime = -1, serverNanos, lastTimeUpdate;
+	private static long serverGameTime = -1, serverNanos;
+	private static volatile long lastTimeUpdate;
+	/** Real milliseconds per server tick between the previous two time updates, or -1 without a usable pair. */
+	private static double lastTickMs = -1;
+	/** Time updates further apart than this are an outage or a pause, not jitter, and restart the measurement. */
+	private static final long MAX_UPDATE_GAP = 2_500_000_000L;
 	private static volatile float jitterMs = -1;
 	private static long lastSample;
 	private static double shownGpu = -1;
@@ -99,17 +104,26 @@ public final class SystemStats {
 		return serverTps;
 	}
 
-	/** The server sends its game time about once a second; ticks gained per real second is its TPS. */
-	public static void timeUpdate(long gameTime) {
-		long now = System.nanoTime();
-		if (serverGameTime >= 0 && now > serverNanos && gameTime >= serverGameTime) {
-			float target = Minecraft.getInstance().level == null ? 20 : Minecraft.getInstance().level.tickRateManager().tickrate();
-			float sample = Math.min((float) ((gameTime - serverGameTime) * 1e9 / (now - serverNanos)), target);
+	/**
+	 * The server sends its game time about once a second; ticks gained per real second is its TPS. Called on the
+	 * network thread when the packet arrives, so how long the client takes to handle it does not count as jitter.
+	 */
+	public static void timeUpdate(long gameTime, long now) {
+		long ticks = gameTime - serverGameTime, elapsed = now - serverNanos;
+		if (serverGameTime >= 0 && ticks > 0 && elapsed > 0 && elapsed <= MAX_UPDATE_GAP) {
+			var level = Minecraft.getInstance().level;
+			float target = level == null ? 20 : level.tickRateManager().tickrate();
+			float sample = Math.min((float) (ticks * 1e9 / elapsed), target);
 			serverTps = serverTps < 0 ? sample : serverTps * 0.6f + sample * 0.4f;
-			// Updates leave the server at fixed tick steps; how far their arrival drifts from that is the connection's jitter.
-			float drift = (float) Math.abs((now - serverNanos) / 1e6 - (gameTime - serverGameTime) * 1000.0 / target);
-			jitterMs = jitterMs < 0 ? drift : jitterMs * 0.75f + drift * 0.25f;
-		}
+			// Jitter is how much the spacing of updates changes from one to the next, per tick so a steadily slow
+			// server does not count; like RFC 3550 it is smoothed over the last updates.
+			double tickMs = elapsed / 1e6 / ticks;
+			if (lastTickMs >= 0) {
+				float change = (float) (Math.abs(tickMs - lastTickMs) * ticks);
+				jitterMs = jitterMs < 0 ? change : jitterMs * 0.8f + change * 0.2f;
+			}
+			lastTickMs = tickMs;
+		} else lastTickMs = -1;
 		lastTimeUpdate = now;
 		serverGameTime = gameTime;
 		serverNanos = now;
@@ -120,11 +134,12 @@ public final class SystemStats {
 		serverGameTime = -1;
 		serverTps = -1;
 		jitterMs = -1;
+		lastTickMs = -1;
 		lastTimeUpdate = 0;
 	}
 
-	/** Average drift of the server's time updates in milliseconds, or -1 before two have arrived. */
-	static float jitter() { return jitterMs; }
+	/** Smoothed jitter of the server's time updates in milliseconds; -1 before it is known and in singleplayer, where there is no network. */
+	static float jitter() { return Minecraft.getInstance().hasSingleplayerServer() ? -1 : jitterMs; }
 
 	/** Seconds without any time update from the server (sent every second), or 0 while the link is fine. */
 	static float silence() {
