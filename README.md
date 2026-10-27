@@ -1,267 +1,74 @@
-# ModelMirage
+<div align="center">
 
-Клиентский Fabric-мод **0.4.2** для Minecraft **26.2** (JDK **25**). Меняет
-модели предметов, модель игрока и HUD-персонажа на модели из онлайн-каталога,
-а ещё даёт настраиваемый HUD. Всё работает только у тебя в клиенте: сервер
-видит обычные предметы, другие игроки — обычные модели.
+<h1>ModelMirage</h1>
+<hr>
 
-- **Модели предметов** — Minecraft JSON, OBJ, FBX, glTF/GLB, Blender и другие
-  3D-форматы (через Assimp). Подмена действует на все предметы выбранного типа.
-- **Модель игрока** — своя и отдельно для других игроков (статическая).
-- **Персонажи HUD** — анимированные PNG-последовательности.
-- **HUD** — Watermark, координаты, цель, эффекты, инвентарь, броня,
-  клавиши; расположение меняется в открытом чате.
-- **Языки** — русский и английский, по языку Minecraft. Шрифт интерфейса —
-  Jura.
+**Client-side Fabric mod: swap item and player models from an online catalog, plus a configurable HUD**
 
-![Меню ModelMirage](docs/screenshots/menu-item-ru.png)
+![Minecraft](https://img.shields.io/badge/MINECRAFT-26.2-62B47A?style=flat-square&logo=minecraft&logoColor=white)
+![Fabric](https://img.shields.io/badge/FABRIC_LOADER-0.19.5-DBD0B4?style=flat-square)
+![Java](https://img.shields.io/badge/JAVA-25-ED8B00?style=flat-square&logo=openjdk&logoColor=white)
+![License](https://img.shields.io/github/license/hhhhhffd/ModelMirage?style=flat-square)
 
-## Установка и использование
+[Build](#build) · [Usage](#usage) · [Catalog](#model-catalog) · [License](#license)
 
-1. Положи `ModelMirage-0.4.2.jar` и Fabric API для 26.2 в `mods/`.
-2. В мире нажми **Right Shift** (клавиша меняется в «Управление → ModelMirage»).
-3. **Предметы** → выбери предмет (или просто начни печатать, например
-   `diamond_sword`, и нажми Enter) → выбери модель.
-4. Справа предпросмотр, перетаскивание вращает модель. **Применить** включает
-   модель, **Сброс** возвращает обычную.
+</div>
 
-Модели скачиваются в фоне, без перезагрузки ресурсов. Скачанные файлы
-проверяются по SHA-256 и кешируются, поэтому после первой загрузки работают
-без сети.
+> [!NOTE]
+> Archived — no longer maintained.
 
-Что и когда качается:
+![ModelMirage HUD menu](docs/screenshots/menu-hud-en.png)
 
-- **При запуске** — только индекс каталога, и то с ETag: если он не
-  изменился, сервер отвечает `304` без содержимого. Плюс применённые модели,
-  которых ещё нет в кеше.
-- **В меню** превью качаются только для плиток, которые видны на экране,
-  по три за раз; пока модель не скачана, на плитке виден её размер. Уже
-  скачанные модели берутся из кеша без сети.
-- **Кеш** (`config/modelmirage/cache/`): после обновления каталога файлы, на
-  которые он больше не ссылается (старые версии, удалённые модели), удаляются.
+## What it is
 
-## Меню
+ModelMirage replaces item models, the player model and the HUD character with models downloaded from an online catalog, and adds a configurable HUD. Everything is client-side: the server sees vanilla items and other players see vanilla models. Models are fetched in the background, verified by SHA-256 and cached, so they work offline after the first download.
 
-| Раздел | Что внутри |
+No release was published; build the JAR from source (see [Build](#build)).
+
+## Features
+
+- Item models: Minecraft JSON, OBJ, FBX, glTF/GLB, Blender and other 3D formats (decoded through LWJGL Assimp). A replacement applies to every item of the chosen type.
+- Player model: your own and, separately, other players (static).
+- HUD characters: animated PNG sequences.
+- HUD panels: Watermark (ping, FPS, TPS, CPU/GPU load, K/D/A counters and more), coordinates, target, effects, inventory, armor and keys. Panels are positioned in the open chat with edge and grid snapping.
+- Russian and English UI, chosen from the Minecraft language.
+
+![3D models in the world](docs/screenshots/world-3d-models.png)
+
+## Stack
+
+| Part | Version |
 | --- | --- |
-| Модели → Предметы, Своя модель, Другие игроки, Персонажи | сетка плиток с живым превью и карточка «Применить / Сброс» |
-| Визуалы → HUD | карточки панелей HUD и прицела |
-| Система → Применённые | всё применённое со сбросом по пунктам |
-| Система → Настройки | оформление меню; HUD: вкл/выкл целиком, масштаб, цветные иконки, сетка; стекло: размытие, тонировка, затемнение; каталог |
+| Minecraft | 26.2 |
+| Fabric Loader | >= 0.19.5 |
+| Fabric API | 0.161.0+26.2 |
+| Java | 25 |
+| Mod version | 0.4.2 |
+| Model decoding | LWJGL Assimp 3.4.1 |
+| Tests | JUnit 5 (`fabric-loader-junit`), see [docs/TESTING.md](docs/TESTING.md) |
 
-Управление:
+## Usage
 
-- **Ctrl+F** или любой символ — поиск по странице, **Enter** открывает
-  единственный результат, **Esc** / кнопка «назад» мыши — назад к сетке.
-- Слайдер: стрелки меняют значение (Shift — шаг ×10).
-- Строка «Клавиша»: клик и нажатие назначают, Backspace/Delete удаляют,
-  Esc отменяет.
+1. Put `ModelMirage-0.4.2.jar` and Fabric API for 26.2 into `mods/`.
+2. In a world, press **Right Shift** (rebindable under Controls, ModelMirage).
+3. Open **Items**, pick an item (or type its name, for example `diamond_sword`, and press Enter), then pick a model.
+4. Drag the preview to rotate it. **Apply** enables the model, **Reset** restores the vanilla one.
 
-## HUD
+Config files live in `config/modelmirage/`; the catalog cache is in `config/modelmirage/cache/`.
 
-Каждая панель — отдельный модуль со своим фоном (стекло, тёмный, нет), тенью и
-элементами. **ПКМ по панели** в открытом чате открывает её настройки.
-Стекло у всех панелей общее (Настройки → Стекло); переключатель «Своё стекло»
-в карточке панели даёт ей собственные размытие и тонировку.
+## Model catalog
 
-- **Watermark**: элементы выбираются списком с галочками — логотип, сигнал
-  сети, пинг, разброс пинга, FPS, 1% low FPS, ник, время, голова, загрузка
-  и частота CPU, загрузка GPU, TPS сервера, адрес сервера (`localhost` в
-  одиночной игре), память, скорость, три K/D/A (PVP: игроки, TOTEMS:
-  тотемы снёс/потерял/помог, PVE: мобы) и предупреждение «нет связи»,
-  которое видно только при потере связи. Плотность — плотно, обычно, свободно.
-  Элементы переставляются: зажми и тащи вбок. Если тянуть вверх или вниз,
-  двигается вся панель.
-- **Броня**: прочность «как в инвентаре» (ванильная полоска на предмете),
-  в процентах или скрыта; горизонтально или вертикально.
-- **Инвентарь**: «как в инвентаре» (количество и прочность) или только
-  предметы.
+The official catalog is [ModelMirage-catolog](https://github.com/hhhhhffd/ModelMirage-catolog). Models are not bundled in the JAR. A custom catalog is set with the JVM argument `-Dmodelmirage.catalogUrl=https://example.com/index.json` (plain HTTP is allowed only for `localhost`, `127.0.0.1` and `[::1]`). The index format is described by [docs/catalog.schema.json](docs/catalog.schema.json).
 
-**Как считается K/D/A.** Третье число — помощи. Смерть или снесённый тотем
-засчитываются тебе, если ты наносил урон этому существу за последние 30 секунд
-и после тебя по нему не бил другой игрок — чем бы его ни добили (огонь,
-падение, моб). Если после тебя бил другой игрок и он добил — это помощь.
-Удары в ближнем бою клиент знает сам. Начиная с серверов 1.19.4 сервер
-присылает автора каждого урона (стрелок, разбивший кристалл, поджёгший TNT).
-На старых серверах через ViaVersion автора нет, поэтому стрелы, трезубцы и
-кристаллы засчитываются по твоему снаряду рядом с целью или по кристаллу,
-который ты только что разбил, а чужие удары там не видны, и помощь
-засчитывается как убийство.
-Проверено на Paper 1.16.5 + ViaVersion 5.12.1. Ограничения: на старых
-серверах не видно, что тебя опередил другой игрок; убийства дальше дальности
-отслеживания существ не видны; якоря и кровати не засчитываются; режимы,
-где смерть подменяют без ванильной смерти, тоже не засчитываются.
-
-**Когда счёт обнуляется.** Счёт свой у каждого адреса сервера (в одиночной
-игре — у каждого мира) и хранится в `config/modelmirage/combat.json`.
-Перезаход после кика или вылета и переход между режимами одной сети
-продолжают тот же счёт. Если на сервере не было 15 минут, при входе счёт
-начинается с нуля. В карточке Watermark у каждого счётчика своя кнопка сброса.
-
-**Редактирование — в открытом чате.** Видны все панели, включая образцы и
-выключенные (полупрозрачными):
-
-- панели прилипают к краям и центру экрана, к краям, центрам и бокам других
-  панелей; с включённой сеткой (Настройки → HUD → Сетка) — ещё и к ней.
-  **Shift** — без прилипания;
-- справа список всех элементов HUD с переключателями;
-- колесо — масштаб; двойной клик — по центру; ПКМ — настройки панели.
-
-Позиция хранится как привязка к краям: панель у нижнего края остаётся у него
-при любом размере окна. Если открыть чат, панели у нижнего края поднимаются над
-строкой ввода и опускаются обратно, когда чат закрыт.
-
-## Файлы настроек
-
-| Файл | Содержимое |
-| --- | --- |
-| `config/modelmirage.json` | модели предметов |
-| `config/modelmirage/changer.json` | своя модель, модель других игроков, персонаж HUD |
-| `config/modelmirage/visuals.json` | модули HUD и их настройки |
-| `config/modelmirage/hud.json` | позиции и масштаб панелей |
-| `config/modelmirage/appearance.json` | оформление меню, общие настройки HUD и стекла |
-| `config/modelmirage/cache/` | проверенный индекс каталога и файлы моделей |
-
-Старые конфиги переносятся при загрузке. Например, модуль `BoyKisser`
-теперь называется `Mascot`, встроенный персонаж — `builtin-mascot`, а
-настройки бывшего модуля «Интерфейс» (масштаб, тонировка, цветные иконки)
-стали общими настройками HUD. Позиции панелей из старого `hud.json`
-пересчитываются под новую привязку к краям при первом показе.
-Неверное значение одной настройки пропускается без сброса остальных.
-
-## Каталог
-
-Официальный каталог:
-[ModelMirage-catolog](https://github.com/hhhhhffd/ModelMirage-catolog).
-Модели не входят в JAR мода. Свой каталог подключается JVM-параметром
-`-Dmodelmirage.catalogUrl=https://example.com/index.json` (HTTP разрешён
-только для `localhost`, `127.0.0.1` и `[::1]`).
-
-Индекс — JSON со `schema: 2` (старый `schema: 1` тоже читается), машинная
-схема — [docs/catalog.schema.json](docs/catalog.schema.json). Поля записи:
-
-| Поле | Обязательно | Значение |
-| --- | --- | --- |
-| `id` | да | `[a-z0-9][a-z0-9_-]{0,63}`, уникален |
-| `name` | да | название на плитке, до 128 символов |
-| `kind` | нет | `item` (по умолчанию), `player`, `mascot` |
-| `format` | да | декодер, см. ниже |
-| `model` | да | главный файл |
-| `textures` | нет | `{ "modelmirage:путь": файл }`, PNG |
-| `parents` | нет | родительские JSON-модели или сопутствующие файлы 3D-формата |
-| `group`, `color` | нет | подпись категории и цвет полосы плитки (`#RRGGBB`) |
-| `items` | нет | для каких предметов доступна модель (`minecraft:diamond_sword`) |
-
-Каждый файл описывается как `{ "path", "sha256", "bytes" }` с относительным
-путём. Лимиты: 4096 записей и 2 MiB на индекс, 32 MiB на запись, PNG до
-2048×2048 и 16 Mi пикселей суммарно.
-
-### Форматы
-
-| `format` | `kind` | Что это |
-| --- | --- | --- |
-| `java-item` | item, player | Minecraft JSON: кубоиды, `item/generated`, `item/handheld`, display, родители |
-| `obj`, `fbx`, `gltf`, `glb`, `dae`, `3ds`, `ply`, `stl`, `blend`/`blender` | item, player | 3D-модели через Assimp |
-| `sprite-animation` | mascot | PNG-кадры для HUD-персонажа |
-
-Записи с другим `format` видны с пометкой «Нужен загрузчик» и не мешают
-остальному каталогу.
-
-### 3D-модели (Blender, OBJ, FBX, glTF)
-
-Из Blender проще всего экспортировать **`.glb`**: текстуры окажутся внутри
-файла, и запись получится из одного `model`.
-
-```json
-{
-  "id": "crystal-sword",
-  "name": "Crystal Sword",
-  "format": "glb",
-  "items": ["minecraft:diamond_sword"],
-  "model": { "path": "models/crystal-sword/sword.glb", "sha256": "…", "bytes": 48213 }
-}
-```
-
-OBJ с материалом и текстурой:
-
-```json
-{
-  "id": "rusty-axe",
-  "name": "Rusty Axe",
-  "format": "obj",
-  "model": { "path": "models/rusty-axe/axe.obj", "sha256": "…", "bytes": 9120 },
-  "parents": { "modelmirage:rusty-axe/axe.mtl": { "path": "models/rusty-axe/axe.mtl", "sha256": "…", "bytes": 210 } },
-  "textures": { "modelmirage:rusty-axe/axe": { "path": "models/rusty-axe/axe.png", "sha256": "…", "bytes": 3051 } }
-}
-```
-
-Как это работает:
-
-- Все меши запекаются с трансформами узлов и вписываются в блок 1×1×1.
-  В руке модель держится как меч (`item/handheld`), в инвентаре показана под
-  углом, как блок. Модель игрока масштабируется по росту игрока.
-- Текстура материала — встроенная в файл (GLB, FBX) или из `textures` по
-  имени файла без расширения: `map_Kd textures/Axe.png` → `modelmirage:rusty-axe/axe`.
-  Если в файле нет ни одной текстуры, единственная текстура записи ложится на
-  всю модель. Материал без текстуры рисуется своим цветом и прозрачностью.
-- Сопутствующие файлы (`.mtl`, `.bin` у `.gltf`, до 4 MiB) указываются в
-  `parents`. Имена сравниваются без учёта регистра. Assimp видит только файлы
-  записи и не может прочитать ничего с диска.
-- Ограничения: до 100 000 треугольников; скелетная анимация и морфы не
-  проигрываются — используется статическая поза.
-
-### Анимированный персонаж (`sprite-animation`)
-
-```json
-{
-  "width": 64,
-  "height": 64,
-  "frame_time_ms": 100,
-  "frames": ["modelmirage:my_character/frame_0", "modelmirage:my_character/frame_1"]
-}
-```
-
-Все кадры перечисляются в `textures`. До 256 кадров, размер 8–512,
-интервал 16–2000 ms.
-
-## Разработка
+## Build
 
 ```bash
-JAVA_HOME=/usr/lib/jvm/java-25-openjdk ./gradlew build      # сборка и тесты
-JAVA_HOME=/usr/lib/jvm/java-25-openjdk ./gradlew test       # только тесты
-JAVA_HOME=/usr/lib/jvm/java-25-openjdk ./gradlew runClient  # клиент для отладки
+./gradlew build       # build and run tests (JDK 25)
+./gradlew runClient   # development client
 ```
 
-Готовый JAR: `build/libs/ModelMirage-0.4.2.jar`. Тесты и ручные сценарии
-описаны в [docs/TESTING.md](docs/TESTING.md).
+The JAR is written to `build/libs/ModelMirage-0.4.2.jar`.
 
-Устройство кода (`src/client/java/dev/modelmirage/client`):
+## License
 
-| Пакет | Назначение |
-| --- | --- |
-| `catalog` | индекс каталога, скачивание, проверка, кеш, реестр декодеров |
-| `render` | декодеры (`RuntimeModels`, `AssimpModels`, `MascotAnimations`) и установка моделей без resource reload |
-| `gui`, `gui/kit` | меню, стеклянный рендер, контролы |
-| `visual` | HUD-модули, редактирование в чате, раскладка, системные показатели |
-| `mixin` | подмена модели предмета, модели игрока, захват кадра для стекла, клавиши HUD |
-
-Тексты интерфейса лежат в `assets/modelmirage/lang/{ru_ru,en_us}.json`.
-Названия модулей HUD берутся из ключей `modelmirage.module.<Модуль>[.<настройка>[.<вариант>]]`.
-
-Новый формат добавляется вызовом
-`CatalogService.registerLoader(format, kinds, loader)`.
-`ModelLoader.prepare` получает уже проверенные байты в рабочем потоке,
-`Prepared.install` вызывается в потоке Minecraft, `discard` освобождает
-ресурсы, если каталог сменился во время загрузки. Для 3D-геометрии декодер
-может вернуть `RuntimeModels.Prepared`. Файлы каталога никогда не исполняются
-как код.
-
-Для агентной проверки в игре есть `./scripts/setup-mcp.sh`: он ставит Minecraft
-Mod MCP 0.4.1 в `run/mods/` (в релиз не входит).
-
-## Права
-
-Собственный код — MIT. Часть GUI/HUD, MSDF-шрифты и кадры персонажа
-адаптированы из [AstolfoVisuals](https://github.com/SRS-0/AstolfoVisuals) с
-разрешения владельца проекта. Модели читаются через LWJGL Assimp (BSD-3).
-Подробности и исключения из MIT — в [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+MIT, see [LICENSE](LICENSE). The GUI/HUD code, MSDF fonts and HUD character frames adapted from AstolfoVisuals are excluded from that license; details are in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
